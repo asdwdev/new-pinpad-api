@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NewPinpadApi.Data;
+using NewPinpadApi.DTOs;
+using NewPinpadApi.Models;
 
 namespace NewPinpadApi.Controller
 {
@@ -111,12 +113,12 @@ namespace NewPinpadApi.Controller
 
         [HttpPut("{id}/maintenance")]
         public async Task<IActionResult> UpdateMaintenance(
-            int id, 
+            int id,
             [FromBody] MaintenanceUpdateDto request)
         {
-            // Cari pinpad berdasarkan ID
-            var data = await _context.Pinpads.FindAsync(id);
-            if (data == null)
+            // Cari pinpad
+            var pinpad = await _context.Pinpads.FindAsync(id);
+            if (pinpad == null)
             {
                 return NotFound(new
                 {
@@ -127,13 +129,28 @@ namespace NewPinpadApi.Controller
 
             try
             {
-                // Update status 
-                data.PpadStatusLama = data.PpadStatus;  // simpan status lama
-                data.PpadStatus = request.Type;           // update status saat ini
-                data.PpadUpdateBy = request.UpdatedBy;
-                data.PpadUpdateDate = DateTime.Now;
+                // Simpan status lama
+                pinpad.PpadStatusLama = pinpad.PpadStatus;
 
+                // Update status
+                pinpad.PpadStatus = request.PpadStatus;
+                pinpad.PpadStatusRepair = request.PpadStatusRepair; // nullable
+                pinpad.PpadUpdateBy = request.PpadUpdatedBy;
+                pinpad.PpadUpdateDate = DateTime.Now;
 
+                // Simpan log maintenance di DeviceLog
+                var log = new DeviceLog
+                {
+                    DevlogBranch = pinpad.PpadBranch,
+                    DevlogSn = pinpad.PpadSn,
+                    DevlogStatus = request.PpadStatus,
+                    DevlogTrxCode = "MAINTENANCE",
+                    DevlogCreateBy = request.PpadUpdatedBy,
+                    DevlogCreateDate = DateTime.Now
+                };
+                _context.DeviceLogs.Add(log);
+
+                // Simpan ke database
                 await _context.SaveChangesAsync();
 
                 return Ok(new
@@ -142,11 +159,12 @@ namespace NewPinpadApi.Controller
                     message = "Pinpad maintenance updated successfully",
                     data = new
                     {
-                        ppadId = data.PpadId,
-                        ppadSn = data.PpadSn,
-                        ppadStatus = data.PpadStatus,
-                        ppadStatusRepair = data.PpadStatusRepair,
-                        ppadUpdateDate = data.PpadUpdateDate
+                        ppadId = pinpad.PpadId,
+                        ppadSn = pinpad.PpadSn,
+                        ppadStatusLama = pinpad.PpadStatusLama,
+                        ppadStatus = pinpad.PpadStatus,
+                        ppadStatusRepair = pinpad.PpadStatusRepair,
+                        ppadUpdateDate = pinpad.PpadUpdateDate
                     }
                 });
             }
@@ -160,13 +178,5 @@ namespace NewPinpadApi.Controller
                 });
             }
         }
-
-        // DTO untuk request body
-        public class MaintenanceUpdateDto
-        {
-            public string Type { get; set; }          // Status perbaikan
-            public string UpdatedBy { get; set; }     // User yang update
-        }
-
     }
 }

@@ -18,5 +18,8 @@ namespace NewPinpadApi.Data
 
         // Tabel untuk Pinpad
         public DbSet<Pinpad> Pinpads { get; set; }
+
+        // Tabel untuk PinpadLogs
+        public DbSet<DeviceLog> DeviceLogs { get; set; }
     }
 }

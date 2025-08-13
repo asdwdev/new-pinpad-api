@@ -10,7 +10,7 @@ namespace NewPinpadApi.Models
         public string PpadBranch { get; set; }         // Kode / nama branch saat ini
         public string PpadBranchLama { get; set; }     // Branch sebelumnya
         public string PpadStatus { get; set; }         // Status sekarang (misalnya aktif, rusak, dsb.)
-        public string PpadStatusRepair { get; set; }   // Status perbaikan (jika ada)
+        public string? PpadStatusRepair { get; set; }   // Status perbaikan (jika ada)
         public string PpadStatusLama { get; set; }     // Status sebelumnya
         public string PpadTid { get; set; }            // TID (Terminal ID)
         public string PpadFlag { get; set; }           // Flag khusus (misal untuk penanda kondisi tertentu)
