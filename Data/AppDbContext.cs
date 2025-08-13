@@ -12,5 +12,8 @@ namespace NewPinpadApi.Data
 
         // Tabel untuk Branch
         public DbSet<Branch> Branches { get; set; }
+
+        // Tabel untuk User
+        public DbSet<User> Users { get; set; }
     }
 }
