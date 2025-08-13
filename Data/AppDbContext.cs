@@ -15,5 +15,8 @@ namespace NewPinpadApi.Data
 
         // Tabel untuk User
         public DbSet<User> Users { get; set; }
+
+        // Tabel untuk Pinpad
+        public DbSet<Pinpad> Pinpands { get; set; }
     }
 }
