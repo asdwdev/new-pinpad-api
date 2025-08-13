@@ -70,7 +70,7 @@ namespace NewPinpadApi.Controller
         public async Task<IActionResult> GetById(int id)
         {
             // Cari pinpad berdasarkan ID
-            var pinpad = await _context.Pinpads
+            var data = await _context.Pinpads
                 .Where(p => p.PpadId == id)
                 .Select(p => new
                 {
@@ -92,7 +92,7 @@ namespace NewPinpadApi.Controller
                 })
                 .FirstOrDefaultAsync();
 
-            if (pinpad == null)
+            if (data == null)
             {
                 return NotFound(new
                 {
@@ -105,7 +105,7 @@ namespace NewPinpadApi.Controller
             {
                 success = true,
                 message = "Pinpad detail retrieved",
-                pinpad
+                data
             });
         }
     }
