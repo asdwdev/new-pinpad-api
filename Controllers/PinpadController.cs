@@ -5,7 +5,7 @@ using NewPinpadApi.Data;
 namespace NewPinpadApi.Controller
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/[controller]s")]
 
     public class PinpadController : ControllerBase
     {
@@ -108,5 +108,65 @@ namespace NewPinpadApi.Controller
                 data
             });
         }
+
+        [HttpPut("{id}/maintenance")]
+        public async Task<IActionResult> UpdateMaintenance(
+            int id, 
+            [FromBody] MaintenanceUpdateDto request)
+        {
+            // Cari pinpad berdasarkan ID
+            var data = await _context.Pinpads.FindAsync(id);
+            if (data == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Maintenance update failed: Pinpad not found"
+                });
+            }
+
+            try
+            {
+                // Update status 
+                data.PpadStatusLama = data.PpadStatus;  // simpan status lama
+                data.PpadStatus = request.Type;           // update status saat ini
+                data.PpadUpdateBy = request.UpdatedBy;
+                data.PpadUpdateDate = DateTime.Now;
+
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Pinpad maintenance updated successfully",
+                    data = new
+                    {
+                        ppadId = data.PpadId,
+                        ppadSn = data.PpadSn,
+                        ppadStatus = data.PpadStatus,
+                        ppadStatusRepair = data.PpadStatusRepair,
+                        ppadUpdateDate = data.PpadUpdateDate
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Maintenance update failed",
+                    error = ex.Message
+                });
+            }
+        }
+
+        // DTO untuk request body
+        public class MaintenanceUpdateDto
+        {
+            public string Type { get; set; }          // Status perbaikan
+            public string UpdatedBy { get; set; }     // User yang update
+        }
+
     }
 }
