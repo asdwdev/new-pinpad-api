@@ -1,0 +1,6 @@
+@NewPinpadApi_HostAddress = http://localhost:5125
+
+GET {{NewPinpadApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
