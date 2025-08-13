@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NewPinpadApi.Attributes;
 using NewPinpadApi.Data;
 using NewPinpadApi.DTOs;
 
@@ -86,5 +87,14 @@ namespace NewPinpadApi.Controller
                 message = "Logout successful"
             });
         }
+
+        // [RequireSession]
+        // [HttpGet("profile")]
+        // public IActionResult GetProfile()
+        // {
+        //     // di sini pasti sudah login
+        //     var username = HttpContext.Session.GetString("Username");
+        //     return Ok(new { message = "Hello " + username });
+        // }
     }
 }
