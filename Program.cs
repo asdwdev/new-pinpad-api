@@ -7,6 +7,20 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Cache buat session
+builder.Services.AddDistributedMemoryCache();
+
+// Konfigurasi session cookie (HttpOnly, Secure)
+builder.Services.AddSession(options =>
+{
+    options.Cookie.Name = ".NewPinpad.Session";
+    options.Cookie.HttpOnly = true;
+    // options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // wajib HTTPS di prod
+    options.Cookie.SameSite = SameSiteMode.Lax;              // aman untuk form login
+    options.IdleTimeout = TimeSpan.FromMinutes(60);          // auto-expire kalau idle
+    options.Cookie.IsEssential = true;                       // biar gak keblokir consent
+});
+
 // tambahkan layanan controller
 builder.Services.AddControllers();
 
@@ -15,6 +29,9 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// aktifkan session sebelum MapControllers
+app.UseSession();
 
 // aktifkan routing ke controllers
 app.MapControllers();
