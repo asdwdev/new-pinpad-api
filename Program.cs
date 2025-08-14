@@ -21,6 +21,18 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;                       // biar gak keblokir consent
 });
 
+// Tambahkan CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowApp",
+        policy => policy
+            .WithOrigins("http://localhost:5221") // alamat NewPinpadApp lo
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials() // wajib kalau mau kirim session/cookie
+    );
+});
+
 // tambahkan layanan controller
 builder.Services.AddControllers();
 
@@ -32,6 +44,9 @@ var app = builder.Build();
 
 // aktifkan session sebelum MapControllers
 app.UseSession();
+
+app.UseCors("AllowApp"); // HARUS sebelum app.MapControllers()
+
 
 // aktifkan routing ke controllers
 app.MapControllers();

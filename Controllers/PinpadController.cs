@@ -4,7 +4,7 @@ using NewPinpadApi.Data;
 using NewPinpadApi.DTOs;
 using NewPinpadApi.Models;
 
-namespace NewPinpadApi.Controller
+namespace NewPinpadApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]s")]

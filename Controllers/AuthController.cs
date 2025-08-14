@@ -6,7 +6,7 @@ using NewPinpadApi.Attributes;
 using NewPinpadApi.Data;
 using NewPinpadApi.DTOs;
 
-namespace NewPinpadApi.Controller
+namespace NewPinpadApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -79,6 +79,8 @@ namespace NewPinpadApi.Controller
                     message = "Logout failed or session not found"
                 });
             }
+
+            HttpContext.Session.Clear();
 
             // kalau ada -> hapus semau data di session
             return Ok(new

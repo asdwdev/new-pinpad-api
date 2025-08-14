@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NewPinpadApi.Data;
 
-namespace NewPinpadApi.Controller
+namespace NewPinpadApi.Controllers
 {
 
     [ApiController]
