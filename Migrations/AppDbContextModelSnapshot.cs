@@ -175,7 +175,7 @@ namespace NewPinpadApi.Migrations
 
                     b.HasIndex("PpadBranch");
 
-                    b.ToTable("Pinpands");
+                    b.ToTable("Pinpads");
                 });
 
             modelBuilder.Entity("NewPinpadApi.Models.Regional", b =>

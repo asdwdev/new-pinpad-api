@@ -3,6 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using NewPinpadApi.Data;
 using NewPinpadApi.DTOs;
 using NewPinpadApi.Models;
+using OfficeOpenXml;
+using iTextSharp.text;
+using iTextSharp.text.pdf;
 
 namespace NewPinpadApi.Controllers
 {
@@ -20,9 +23,9 @@ namespace NewPinpadApi.Controllers
 
         [HttpGet]
         public async Task<IActionResult> GetAll(
-             [FromQuery] string status = null,
-             [FromQuery] string loc = null,
-             [FromQuery] string q = null,
+             [FromQuery] string? status = null,
+             [FromQuery] string? loc = null,
+             [FromQuery] string? q = null,
              [FromQuery] int page = 1,
              [FromQuery] int size = 10)
         {
@@ -35,7 +38,12 @@ namespace NewPinpadApi.Controllers
 
             // Filter by location (branch) jika ada
             if (!string.IsNullOrEmpty(loc))
-                query = query.Where(p => p.PpadBranch == loc);
+            {
+                if (int.TryParse(loc, out int branchId))
+                {
+                    query = query.Where(p => p.PpadBranch == branchId);
+                }
+            }
 
             // Search q di serial number atau TID
             if (!string.IsNullOrEmpty(q))
@@ -141,7 +149,7 @@ namespace NewPinpadApi.Controllers
                 // Simpan log maintenance di DeviceLog
                 var log = new DeviceLog
                 {
-                    DevlogBranch = pinpad.PpadBranch,
+                    DevlogBranch = pinpad.PpadBranch.ToString(),
                     DevlogSn = pinpad.PpadSn,
                     DevlogStatus = request.PpadStatus,
                     DevlogTrxCode = "MAINTENANCE",
@@ -178,32 +186,8 @@ namespace NewPinpadApi.Controllers
                 });
             }
         }
-    }
-}
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using NewPinpadApi.Data;
-using NewPinpadApi.Models;
-using OfficeOpenXml;
-using iTextSharp.text;
-using iTextSharp.text.pdf;
-using System.IO;
-using System.Linq;
 
-[Route("api/[controller]")]
-[ApiController]
-public class PinpadController : ControllerBase
-{
-    private readonly AppDbContext _context;
-
-    public PinpadController(AppDbContext context)
-    {
-        _context = context;
-        
-        // EPPlus license akan menggunakan default behavior
-    }
-
-    // GET: api/Pinpad/GetBranches
+        // GET: api/Pinpad/GetBranches
     [HttpGet("GetBranches")]
     public async Task<IActionResult> GetBranches(string? status = null)
     {
@@ -254,7 +238,7 @@ public class PinpadController : ControllerBase
     {
         try
         {
-            var allPinpads = await _context.Pinpands
+            var allPinpads = await _context.Pinpads
                 .Include(p => p.Branch)
                 .ThenInclude(b => b.Regional)
                 .ToListAsync();
@@ -289,7 +273,7 @@ public class PinpadController : ControllerBase
     {
         try
         {
-            var query = _context.Pinpands.AsQueryable();
+            var query = _context.Pinpads.AsQueryable();
             
             if (!string.IsNullOrEmpty(status))
             {
@@ -303,7 +287,7 @@ public class PinpadController : ControllerBase
                 var debugInfo = new
                 {
                     filterApplied = status,
-                    totalPinpadsInDb = await _context.Pinpands.CountAsync(),
+                    totalPinpadsInDb = await _context.Pinpads.CountAsync(),
                     hasFilters = !string.IsNullOrEmpty(status)
                 };
                 
@@ -335,7 +319,7 @@ public class PinpadController : ControllerBase
             // Simulasi proses export yang membutuhkan waktu
             await Task.Delay(2000); // Tunggu 2 detik untuk simulasi
 
-            var query = from p in _context.Pinpands
+            var query = from p in _context.Pinpads
                        select new
                        {
                            PpadId = p.PpadId,
@@ -436,18 +420,18 @@ public class PinpadController : ControllerBase
     {
         try
         {
-            var availableStatuses = await _context.Pinpands
+            var availableStatuses = await _context.Pinpads
                 .Where(p => !string.IsNullOrEmpty(p.PpadStatus))
                 .Select(p => p.PpadStatus)
                 .Distinct()
                 .ToListAsync();
                 
-            var availableBranches = await _context.Pinpands
+            var availableBranches = await _context.Pinpads
                 .Select(p => p.PpadBranch)
                 .Distinct()
                 .ToListAsync();
                 
-            var availableSerialNumbers = await _context.Pinpands
+            var availableSerialNumbers = await _context.Pinpads
                 .Where(p => !string.IsNullOrEmpty(p.PpadSn))
                 .Select(p => p.PpadSn)
                 .Take(10) // Limit to first 10 for display
@@ -462,7 +446,7 @@ public class PinpadController : ControllerBase
                     availableStatuses,
                     availableBranches,
                     availableSerialNumbers,
-                    totalPinpads = await _context.Pinpands.CountAsync()
+                    totalPinpads = await _context.Pinpads.CountAsync()
                 }
             };
 
@@ -482,11 +466,11 @@ public class PinpadController : ControllerBase
         {
             var regionalCount = await _context.Regionals.CountAsync();
             var branchCount = await _context.Branches.CountAsync();
-            var pinpadCount = await _context.Pinpands.CountAsync();
+            var pinpadCount = await _context.Pinpads.CountAsync();
             
             // Check if there are any pinpads with specific statuses
-            var activePinpads = await _context.Pinpands.Where(p => p.PpadStatus == "Active").CountAsync();
-            var inactivePinpads = await _context.Pinpands.Where(p => p.PpadStatus == "Inactive").CountAsync();
+            var activePinpads = await _context.Pinpads.Where(p => p.PpadStatus == "Active").CountAsync();
+            var inactivePinpads = await _context.Pinpads.Where(p => p.PpadStatus == "Inactive").CountAsync();
             
             var result = new
             {
@@ -519,7 +503,7 @@ public class PinpadController : ControllerBase
         {
             var regionalCount = await _context.Regionals.CountAsync();
             var branchCount = await _context.Branches.CountAsync();
-            var pinpadCount = await _context.Pinpands.CountAsync();
+            var pinpadCount = await _context.Pinpads.CountAsync();
             var userCount = await _context.Users.CountAsync();
 
             return Ok(new { 
@@ -622,7 +606,7 @@ public class PinpadController : ControllerBase
                     PpadCreateDate = DateTime.Now
                 }
             };
-            _context.Pinpands.AddRange(pinpads);
+            _context.Pinpads.AddRange(pinpads);
             await _context.SaveChangesAsync();
 
             return Ok(new { 
@@ -1285,5 +1269,9 @@ public class PinpadController : ControllerBase
             default:
                 return new BaseColor(200, 200, 200); // Light gray color
         }
+
     }
-} 
+
+    }
+}
+

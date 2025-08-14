@@ -30,5 +30,29 @@ GET {{baseUrl}}/api/Pinpad/pinpads/export?format=csv&serialNumber=SN
 ### 8. Seed Sample Data (if database is empty)
 POST {{baseUrl}}/api/Pinpad/SeedSampleData
 
+### Test GetPinpadList - Get pinpad list with full details for table display
+GET {{baseUrl}}/api/Pinpads/GetPinpadList
+Content-Type: application/json
+
+### Test GetPinpadList with filters
+GET {{baseUrl}}/api/Pinpads/GetPinpadList?status=Ready&regional=Kantor Pusat&page=1&size=20
+Content-Type: application/json
+
+### Test ExportPinpadList to CSV
+GET {{baseUrl}}/api/Pinpads/ExportPinpadList?format=csv
+Content-Type: application/json
+
+### Test ExportPinpadList to Excel
+GET {{baseUrl}}/api/Pinpads/ExportPinpadList?format=xlsx
+Content-Type: application/json
+
+### Test ExportPinpadList to PDF
+GET {{baseUrl}}/api/Pinpads/ExportPinpadList?format=pdf
+Content-Type: application/json
+
+### Test ExportPinpadList with filters
+GET {{baseUrl}}/api/Pinpads/ExportPinpadList?format=csv&status=Ready&regional=Kantor Pusat
+Content-Type: application/json
+
 ### Variables
 @baseUrl = https://localhost:7001
