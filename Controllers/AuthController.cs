@@ -80,7 +80,7 @@ namespace NewPinpadApi.Controllers
                 });
             }
 
-            HttpContext.Session.Clear();
+            HttpContext.Session.Clear(); // hapus semua data session
 
             // kalau ada -> hapus semau data di session
             return Ok(new
@@ -98,5 +98,25 @@ namespace NewPinpadApi.Controllers
         //     var username = HttpContext.Session.GetString("Username");
         //     return Ok(new { message = "Hello " + username });
         // }
+
+        [HttpGet("me")]
+        public IActionResult Me()
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (userId == null)
+            {
+                return Unauthorized(new { success = false, message = "Not logged in" });
+            }
+
+            var username = HttpContext.Session.GetString("Username");
+            var role = HttpContext.Session.GetString("Role");
+
+            return Ok(new
+            {
+                success = true,
+                username,
+                role
+            });
+        }
     }
 }
