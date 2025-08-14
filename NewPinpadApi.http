@@ -1,6 +1,111 @@
 @NewPinpadApi_HostAddress = http://localhost:5125
 
-GET {{NewPinpadApi_HostAddress}}/weatherforecast/
+### Test Database Status
+GET {{NewPinpadApi_HostAddress}}/api/Pinpad/DatabaseStatus
 Accept: application/json
 
-###
+### Seed Sample Data (run this first to populate database)
+POST {{NewPinpadApi_HostAddress}}/api/Pinpad/SeedSampleData
+Content-Type: application/json
+
+### Get All Regionals
+GET {{NewPinpadApi_HostAddress}}/api/Pinpad/GetRegionals
+Accept: application/json
+
+### Get All Branches
+GET {{NewPinpadApi_HostAddress}}/api/Pinpad/GetBranches
+Accept: application/json
+
+### Get Active Branches Only
+GET {{NewPinpadApi_HostAddress}}/api/Pinpad/GetBranches?status=active
+Accept: application/json
+
+### Get All Pinpads
+GET {{NewPinpadApi_HostAddress}}/api/Pinpad/GetPinpads
+Accept: application/json
+
+### Get Active Pinpads Only
+GET {{NewPinpadApi_HostAddress}}/api/Pinpad/GetPinpads?status=active
+Accept: application/json
+
+### Add New Regional
+POST {{NewPinpadApi_HostAddress}}/api/Pinpad/AddRegional
+Content-Type: application/json
+
+{
+  "Code": "REG002",
+  "Name": "Regional Surabaya"
+}
+
+### Add New Branch
+POST {{NewPinpadApi_HostAddress}}/api/Pinpad/AddBranch
+Content-Type: application/json
+
+{
+  "RegionalId": 1,
+  "Class": "active",
+  "Code": "B003",
+  "Name": "Cabang Surabaya",
+  "IpLow": "192.168.3.1",
+  "IpHigh": "192.168.3.10"
+}
+
+### Add New Pinpad
+POST {{NewPinpadApi_HostAddress}}/api/Pinpad/AddPinpad
+Content-Type: application/json
+
+{
+  "PpadSn": "SN003",
+  "PpadBranch": 3,
+  "PpadBranchLama": 0,
+  "PpadStatus": "Active",
+  "PpadStatusRepair": "None",
+  "PpadStatusLama": "Inactive",
+  "PpadTid": "TID003",
+  "PpadFlag": 1
+}
+
+### Export Pinpad Data - GET Method (akan ada delay 2 detik)
+GET {{NewPinpadApi_HostAddress}}/api/Pinpad/pinpads/export?format=csv
+Accept: application/json
+
+### Export Pinpad Data with Filters - GET Method
+GET {{NewPinpadApi_HostAddress}}/api/Pinpad/pinpads/export?format=xlsx&status=Active&branch=1
+Accept: application/json
+
+### Export Pinpad Data by Serial Number - GET Method
+GET {{NewPinpadApi_HostAddress}}/api/Pinpad/pinpads/export?format=pdf&serialNumber=SN001
+Accept: application/json
+
+### Export Pinpad Data - POST Method (lebih fleksibel)
+POST {{NewPinpadApi_HostAddress}}/api/Pinpad/pinpads/export
+Content-Type: application/json
+
+{
+  "Format": "csv",
+  "Status": "Active",
+  "Branch": "1",
+  "SerialNumber": "SN001"
+}
+
+### Export Pinpad Data to Excel - POST Method
+POST {{NewPinpadApi_HostAddress}}/api/Pinpad/pinpads/export
+Content-Type: application/json
+
+{
+  "Format": "xlsx",
+  "Status": "Active"
+}
+
+### Export Pinpad Data to PDF - POST Method
+POST {{NewPinpadApi_HostAddress}}/api/Pinpad/pinpads/export
+Content-Type: application/json
+
+{
+  "Format": "pdf",
+  "Branch": "2"
+}
+
+### Weather Forecast (existing endpoint)
+GET {{NewPinpadApi_HostAddress}}/weatherforecast/
+Accept: application/json

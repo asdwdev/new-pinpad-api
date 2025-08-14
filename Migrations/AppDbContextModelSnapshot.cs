@@ -67,7 +67,6 @@ namespace NewPinpadApi.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("UpdatedBy")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
@@ -87,13 +86,11 @@ namespace NewPinpadApi.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PpadId"));
 
-                    b.Property<string>("PpadBranch")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int>("PpadBranch")
+                        .HasColumnType("int");
 
-                    b.Property<string>("PpadBranchLama")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int>("PpadBranchLama")
+                        .HasColumnType("int");
 
                     b.Property<string>("PpadCreateBy")
                         .IsRequired()
@@ -102,9 +99,8 @@ namespace NewPinpadApi.Migrations
                     b.Property<DateTime>("PpadCreateDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("PpadFlag")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int>("PpadFlag")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("PpadLastActivity")
                         .HasColumnType("datetime2");
@@ -140,6 +136,8 @@ namespace NewPinpadApi.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("PpadId");
+
+                    b.HasIndex("PpadBranch");
 
                     b.ToTable("Pinpands");
                 });
@@ -242,9 +240,22 @@ namespace NewPinpadApi.Migrations
                     b.Navigation("Regional");
                 });
 
+            modelBuilder.Entity("NewPinpadApi.Models.Pinpad", b =>
+                {
+                    b.HasOne("NewPinpadApi.Models.Branch", "Branch")
+                        .WithMany("Pinpads")
+                        .HasForeignKey("PpadBranch")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Branch");
+                });
+
             modelBuilder.Entity("NewPinpadApi.Models.Branch", b =>
                 {
                     b.Navigation("ChildBranches");
+
+                    b.Navigation("Pinpads");
                 });
 
             modelBuilder.Entity("NewPinpadApi.Models.Regional", b =>

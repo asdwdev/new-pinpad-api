@@ -1,0 +1,34 @@
+### Test API Endpoints untuk Debug Filtering Issue
+
+### 1. Check Database Status
+GET {{baseUrl}}/api/Pinpad/DatabaseStatus
+
+### 2. Check Data Existence
+GET {{baseUrl}}/api/Pinpad/CheckData
+
+### 3. Get Available Filter Values
+GET {{baseUrl}}/api/Pinpad/GetAvailableFilters
+
+### 4. Debug All Pinpad Data
+GET {{baseUrl}}/api/Pinpad/DebugPinpads
+
+### 5. Get All Pinpads (No Filter)
+GET {{baseUrl}}/api/Pinpad/GetPinpads
+
+### 6. Get Pinpads with Status Filter
+GET {{baseUrl}}/api/Pinpad/GetPinpads?status=Active
+GET {{baseUrl}}/api/Pinpad/GetPinpads?status=active
+GET {{baseUrl}}/api/Pinpad/GetPinpads?status=Inactive
+
+### 7. Test Export with Different Filters
+GET {{baseUrl}}/api/Pinpad/pinpads/export?format=csv
+GET {{baseUrl}}/api/Pinpad/pinpads/export?format=csv&status=Active
+GET {{baseUrl}}/api/Pinpad/pinpads/export?format=csv&status=active
+GET {{baseUrl}}/api/Pinpad/pinpads/export?format=csv&branch=1
+GET {{baseUrl}}/api/Pinpad/pinpads/export?format=csv&serialNumber=SN
+
+### 8. Seed Sample Data (if database is empty)
+POST {{baseUrl}}/api/Pinpad/SeedSampleData
+
+### Variables
+@baseUrl = https://localhost:7001

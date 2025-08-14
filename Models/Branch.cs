@@ -13,11 +13,12 @@ namespace NewPinpadApi.Models
         public DateTime CreatedAt { get; set; }
         public string CreatedBy { get; set; }
         public DateTime? UpdatedAt { get; set; }
-        public string UpdatedBy { get; set; }
+        public string? UpdatedBy { get; set; }
 
         // Navigation properties
         public Regional Regional { get; set; }
         public Branch ParentBranch { get; set; }
         public ICollection<Branch> ChildBranches { get; set; }
+        public ICollection<Pinpad> Pinpads { get; set; } // Relasi dengan Pinpad
     }
 }
