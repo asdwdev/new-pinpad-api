@@ -7,6 +7,32 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Cache buat session
+builder.Services.AddDistributedMemoryCache();
+
+// Konfigurasi session cookie (HttpOnly, Secure)
+builder.Services.AddSession(options =>
+{
+    options.Cookie.Name = ".NewPinpad.Session";
+    options.Cookie.HttpOnly = true;
+    // options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // wajib HTTPS di prod
+    options.Cookie.SameSite = SameSiteMode.Lax;              // aman untuk form login
+    options.IdleTimeout = TimeSpan.FromMinutes(60);          // auto-expire kalau idle
+    options.Cookie.IsEssential = true;                       // biar gak keblokir consent
+});
+
+// Tambahkan CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowApp",
+        policy => policy
+            .WithOrigins("http://localhost:5221") // alamat NewPinpadApp lo
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials() // wajib kalau mau kirim session/cookie
+    );
+});
+
 // tambahkan layanan controller
 builder.Services.AddControllers();
 
@@ -15,6 +41,12 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// aktifkan session sebelum MapControllers
+app.UseSession();
+
+app.UseCors("AllowApp"); // HARUS sebelum app.MapControllers()
+
 
 // aktifkan routing ke controllers
 app.MapControllers();
