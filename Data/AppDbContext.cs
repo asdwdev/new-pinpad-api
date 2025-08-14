@@ -22,9 +22,11 @@ namespace NewPinpadApi.Data
         // Tabel untuk SysBranches
         public DbSet<SysBranch> SysBranches { get; set; }
 
-
          // Tabel untuk Audit
         public DbSet<Audit> Audits { get; set; }
+
+         // Tabel untuk Dashboard
+        public DbSet<Dashboard> Dashboards { get; set; }
 
           // Tabel untuk SysResponseCode
         public DbSet<SysResponseCode> SysResponseCodes { get; set; }

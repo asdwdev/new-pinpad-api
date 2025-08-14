@@ -21,49 +21,6 @@ namespace NewPinpadApi.Controllers
             _context = context;
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(int id)
-        {
-            // Cari pinpad berdasarkan ID
-            var data = await _context.Pinpads
-                .Where(p => p.PpadId == id)
-                .Select(p => new
-                {
-                    ppadId = p.PpadId,
-                    ppadSn = p.PpadSn,
-                    ppadStatus = p.PpadStatus,
-                    ppadBranch = p.PpadBranch,
-                    ppadBranchLama = p.PpadBranchLama,
-                    ppadStatusRepair = p.PpadStatusRepair,
-                    ppadStatusLama = p.PpadStatusLama,
-                    ppadTid = p.PpadTid,
-                    ppadFlag = p.PpadFlag,
-                    ppadLastLogin = p.PpadLastLogin,
-                    ppadLastActivity = p.PpadLastActivity,
-                    ppadCreateBy = p.PpadCreateBy,
-                    ppadCreateDate = p.PpadCreateDate,
-                    ppadUpdateBy = p.PpadUpdateBy,
-                    ppadUpdateDate = p.PpadUpdateDate
-                })
-                .FirstOrDefaultAsync();
-
-            if (data == null)
-            {
-                return NotFound(new
-                {
-                    success = false,
-                    message = "Pinpad not found"
-                });
-            }
-
-            return Ok(new
-            {
-                success = true,
-                message = "Pinpad detail retrieved",
-                data
-            });
-        }
-
         [HttpGet]
         public async Task<IActionResult> GetPinpadDetails(
             [FromQuery] string? status,
@@ -194,7 +151,7 @@ namespace NewPinpadApi.Controllers
                 });
             }
 
-            // Check if status exists in SysResponseCode
+            // Cek kode status repair valid
             var statusExists = await _context.SysResponseCodes
                 .AnyAsync(r => r.RescodeCode == req.StatusRepair && r.RescodeType == "StatusRepair");
 
@@ -207,10 +164,13 @@ namespace NewPinpadApi.Controllers
                 });
             }
 
-            var pinpad = await _context.Pinpads
-                .FirstOrDefaultAsync(p => p.PpadId == id);
+            // Ambil status lama untuk audit
+            var oldStatusRepair = await _context.Pinpads
+                .Where(p => p.PpadId == id)
+                .Select(p => p.PpadStatusRepair)
+                .FirstOrDefaultAsync();
 
-            if (pinpad == null)
+            if (oldStatusRepair == null && oldStatusRepair != null) // null check
             {
                 return NotFound(new
                 {
@@ -219,54 +179,109 @@ namespace NewPinpadApi.Controllers
                 });
             }
 
-            var oldStatusRepair = pinpad.PpadStatusRepair;
+            // UPDATE pakai raw SQL supaya EF nggak bentrok sama trigger
+            await _context.Database.ExecuteSqlRawAsync(
+                "UPDATE Pinpads SET PpadStatusRepair = {0}, PpadUpdateBy = {1}, PpadUpdateDate = {2} WHERE PpadId = {3}",
+                req.StatusRepair,
+                User?.Identity?.Name ?? "system",
+                DateTime.Now,
+                id
+            );
 
-            pinpad.PpadStatusRepair = req.StatusRepair;
-            pinpad.PpadUpdateBy = User?.Identity?.Name ?? "system";
-            pinpad.PpadUpdateDate = DateTime.Now;
-
-            // Save to Audit table
+            // Simpan audit (pisah supaya tidak ikut trigger)
             var audit = new Audit
             {
                 TableName = "Pinpad",
                 DateTimes = DateTime.Now,
-                KeyValues = $"PpadId: {pinpad.PpadId}",
+                KeyValues = $"PpadId: {id}",
                 OldValues = oldStatusRepair != null
                     ? $"{{\"PpadStatusRepair\":\"{oldStatusRepair}\"}}"
                     : "{}",
                 NewValues = $"{{\"PpadStatusRepair\":\"{req.StatusRepair}\"}}",
-                Username = pinpad.PpadUpdateBy,
+                Username = User?.Identity?.Name ?? "system",
                 ActionType = "Modified"
             };
 
             _context.Audits.Add(audit);
+            await _context.SaveChangesAsync();
 
-            try
+            return Ok(new
             {
-                await _context.SaveChangesAsync();
-
-                return Ok(new
+                success = true,
+                message = "Status repair updated successfully",
+                data = new
                 {
-                    success = true,
-                    message = "Status repair updated successfully",
-                    data = new
-                    {
-                        ppadId = pinpad.PpadId,
-                        ppadStatusRepair = pinpad.PpadStatusRepair,
-                        ppadUpdateBy = pinpad.PpadUpdateBy,
-                        ppadUpdateDate = pinpad.PpadUpdateDate
-                    }
-                });
-            }
-            catch (Exception ex)
+                    ppadId = id,
+                    ppadStatusRepair = req.StatusRepair,
+                    ppadUpdateBy = User?.Identity?.Name ?? "system",
+                    ppadUpdateDate = DateTime.Now
+                }
+            });
+        }
+
+
+        [HttpGet("dashboard")]
+        public async Task<IActionResult> GetDashboard()
+        {
+            var dashboardData = await _context.Pinpads
+                .GroupBy(p => p.PpadBranch)
+                .Select(g => new 
+                {
+                    Code = g.Key,
+                    Total = g.Count(),
+                    NotReady = g.Count(p => p.PpadStatus == "Not Ready To Use"),
+                    Ready = g.Count(p => p.PpadStatus == "Ready To Use"),
+                    Active = g.Count(p => p.PpadStatus == "Active"),
+                    Inactive = g.Count(p => p.PpadStatus == "Inactive"),
+                    Maintenance = g.Count(p => p.PpadStatus == "Maintenance")
+                })
+                .ToListAsync();
+
+            return Ok(dashboardData);
+        }
+
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            // Cari pinpad berdasarkan ID
+            var data = await _context.Pinpads
+                .Where(p => p.PpadId == id)
+                .Select(p => new
+                {
+                    ppadId = p.PpadId,
+                    ppadSn = p.PpadSn,
+                    ppadStatus = p.PpadStatus,
+                    ppadBranch = p.PpadBranch,
+                    ppadBranchLama = p.PpadBranchLama,
+                    ppadStatusRepair = p.PpadStatusRepair,
+                    ppadStatusLama = p.PpadStatusLama,
+                    ppadTid = p.PpadTid,
+                    ppadFlag = p.PpadFlag,
+                    ppadLastLogin = p.PpadLastLogin,
+                    ppadLastActivity = p.PpadLastActivity,
+                    ppadCreateBy = p.PpadCreateBy,
+                    ppadCreateDate = p.PpadCreateDate,
+                    ppadUpdateBy = p.PpadUpdateBy,
+                    ppadUpdateDate = p.PpadUpdateDate
+                })
+                .FirstOrDefaultAsync();
+
+            if (data == null)
             {
-                return StatusCode(500, new
+                return NotFound(new
                 {
                     success = false,
-                    message = "An error occurred while updating status repair",
-                    error = ex.Message
+                    message = "Pinpad not found"
                 });
             }
+
+            return Ok(new
+            {
+                success = true,
+                message = "Pinpad detail retrieved",
+                data
+            });
         }
 
 
