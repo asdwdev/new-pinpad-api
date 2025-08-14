@@ -19,15 +19,16 @@ namespace NewPinpadApi.Controllers
             _context = context;
         }
 
-        [HttpPost("login")]
+       [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
             // cari user berdasarkan username
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
 
+            // kalau user gak ketemu → langsung unauthorized
             if (user == null)
             {
-                return Unauthorized(new { sucess = false, message = "Invalid username or password" });
+                return Unauthorized(new { success = false, message = "Invalid username or password" });
             }
 
             // hash password yang dikirim lalu cocokkan
@@ -37,10 +38,16 @@ namespace NewPinpadApi.Controllers
                 return Unauthorized(new { success = false, message = "Invalid username or password" });
             }
 
-            // Set data ke session (server-side).
+            // validasi role (jangan kasih tahu kalau role salah)
+            if (!string.Equals(user.Role, "Admin Logistik", StringComparison.OrdinalIgnoreCase))
+            {
+                return Unauthorized(new { success = false, message = "Invalid username or password" });
+            }
+
+            // set data ke session
             HttpContext.Session.SetInt32("UserId", user.Id);
-            HttpContext.Session.SetString("Username", user.Username ?? "");
-            HttpContext.Session.SetString("Role", user.Role ?? "User");
+            HttpContext.Session.SetString("Username", user.Username);
+            HttpContext.Session.SetString("Role", user.Role);
 
             return Ok(new
             {
@@ -65,6 +72,8 @@ namespace NewPinpadApi.Controllers
                 return BitConverter.ToString(bytes).Replace("-", "").ToLower();
             }
         }
+
+
 
         [HttpPost("logout")]
         public IActionResult Logout()

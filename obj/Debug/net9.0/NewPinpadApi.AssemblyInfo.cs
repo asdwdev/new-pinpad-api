@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("NewPinpadApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2b397fb6b4337a52cd06f8cc4dd03bd5a8c6c5ae")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b086081c36189b7290da41ca57d34c3c265e0d7e")]
 [assembly: System.Reflection.AssemblyProductAttribute("NewPinpadApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("NewPinpadApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
