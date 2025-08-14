@@ -18,55 +18,55 @@ namespace NewPinpadApi.Controllers
             _context = context;
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetAll(
-             [FromQuery] string status = null,
-             [FromQuery] string loc = null,
-             [FromQuery] string q = null,
-             [FromQuery] int page = 1,
-             [FromQuery] int size = 10)
-        {
-            // Ambil queryable dari database
-            var query = _context.Pinpads.AsQueryable();
+        // [HttpGet]
+        // public async Task<IActionResult> GetAll(
+        //      [FromQuery] string status = null,
+        //      [FromQuery] string loc = null,
+        //      [FromQuery] string q = null,
+        //      [FromQuery] int page = 1,
+        //      [FromQuery] int size = 10)
+        // {
+        //     // Ambil queryable dari database
+        //     var query = _context.Pinpads.AsQueryable();
 
-            // Filter by status jika ada
-            if (!string.IsNullOrEmpty(status))
-                query = query.Where(p => p.PpadStatus == status);
+        //     // Filter by status jika ada
+        //     if (!string.IsNullOrEmpty(status))
+        //         query = query.Where(p => p.PpadStatus == status);
 
-            // Filter by location (branch) jika ada
-            if (!string.IsNullOrEmpty(loc))
-                query = query.Where(p => p.PpadBranch == loc);
+        //     // Filter by location (branch) jika ada
+        //     if (!string.IsNullOrEmpty(loc))
+        //         query = query.Where(p => p.PpadBranch == loc);
 
-            // Search q di serial number atau TID
-            if (!string.IsNullOrEmpty(q))
-                query = query.Where(p => p.PpadSn.Contains(q) || p.PpadTid.Contains(q));
+        //     // Search q di serial number atau TID
+        //     if (!string.IsNullOrEmpty(q))
+        //         query = query.Where(p => p.PpadSn.Contains(q) || p.PpadTid.Contains(q));
 
-            // Total item sebelum paging
-            var total = await query.CountAsync();
+        //     // Total item sebelum paging
+        //     var total = await query.CountAsync();
 
-            // Paging
-            var data = await query
-                .OrderBy(p => p.PpadId)
-                .Skip((page - 1) * size)
-                .Take(size)
-                .Select(p => new
-                {
-                    ppadId = p.PpadId,
-                    ppadSn = p.PpadSn,
-                    ppadStatus = p.PpadStatus,
-                    ppadBranch = p.PpadBranch,
-                    ppadUpdateDate = p.PpadUpdateDate
-                })
-                .ToListAsync();
+        //     // Paging
+        //     var data = await query
+        //         .OrderBy(p => p.PpadId)
+        //         .Skip((page - 1) * size)
+        //         .Take(size)
+        //         .Select(p => new
+        //         {
+        //             ppadId = p.PpadId,
+        //             ppadSn = p.PpadSn,
+        //             ppadStatus = p.PpadStatus,
+        //             ppadBranch = p.PpadBranch,
+        //             ppadUpdateDate = p.PpadUpdateDate
+        //         })
+        //         .ToListAsync();
 
-            return Ok(new
-            {
-                success = true,
-                message = "Pinpad list retrieved",
-                data,
-                total
-            });
-        }
+        //     return Ok(new
+        //     {
+        //         success = true,
+        //         message = "Pinpad list retrieved",
+        //         data,
+        //         total
+        //     });
+        // }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
@@ -178,6 +178,112 @@ namespace NewPinpadApi.Controllers
                 });
             }
         }
+
+        // [HttpGet]
+        // public async Task<IActionResult> GetPinpadDetails()
+        // {
+        //     var data = await _context.Pinpads
+        //         .Include(p => p.Branch)
+        //             .ThenInclude(b => b.SysArea)
+        //         .Select(p => new
+        //         {
+        //             Regional = p.Branch.SysArea.Name,              // SysArea.Name
+        //             CabangInduk = p.Branch.Ctrlbr,                 // Ctrlbr
+        //             KodeOutlet = p.Branch.Code,                    // Code
+        //             Location = p.Branch.Name,                      // Name
+        //             RegisterDate = p.PpadCreateDate,               // Pinpad.PpadCreateDate
+        //             UpdateDate = p.PpadUpdateDate,                 // Pinpad.PpadUpdateDate
+        //             SerialNumber = p.PpadSn,                       // Pinpad.PpadSn
+        //             TID = p.PpadTid,                               // Pinpad.PpadTid
+        //             StatusPinpad = p.PpadStatus,                   // Pinpad.PpadStatus
+        //             CreateBy = p.PpadCreateBy,                     // Pinpad.PpadCreateBy
+        //             IpLow = p.Branch.ppad_iplow,                    // SysBranch.ppad_iplow
+        //             IpHigh = p.Branch.ppad_iphigh,                  // SysBranch.ppad_iphigh
+        //             LastActivity = p.PpadLastActivity               // Pinpad.PpadLastActivity
+        //         })
+        //         .ToListAsync();
+
+        //     return Ok(data);
+        // }
+
+        [HttpGet]
+        public async Task<IActionResult> GetPinpadDetails(
+            [FromQuery] string? status,
+            [FromQuery] string? loc,
+            [FromQuery] string? q,
+            [FromQuery] int page = 1,
+            [FromQuery] int size = 10)
+        {
+            // Sanitasi input
+            status = string.IsNullOrWhiteSpace(status) ? null : status.Trim();
+            loc = string.IsNullOrWhiteSpace(loc) ? null : loc.Trim();
+            q = string.IsNullOrWhiteSpace(q) ? null : q.Trim();
+
+            // Query dasar
+            var query = _context.Pinpads
+                .Include(p => p.Branch)
+                    .ThenInclude(b => b.SysArea)
+                .AsQueryable();
+
+            // Filter berdasarkan status
+            if (!string.IsNullOrEmpty(status))
+            {
+                query = query.Where(p => p.PpadStatus == status);
+            }
+
+            // Filter berdasarkan lokasi (SysBranch.Name)
+            if (!string.IsNullOrEmpty(loc))
+            {
+                query = query.Where(p => p.Branch.Name.Contains(loc));
+            }
+
+            // Filter pencarian bebas (serial number, TID, kode outlet, location)
+            if (!string.IsNullOrEmpty(q))
+            {
+                query = query.Where(p =>
+                    p.PpadSn.Contains(q) ||
+                    p.PpadTid.Contains(q) ||
+                    p.Branch.Code.Contains(q) ||
+                    p.Branch.Name.Contains(q));
+            }
+
+            // Total data untuk pagination
+            var totalData = await query.CountAsync();
+
+            // Pagination server-side
+            var result = await query
+                .OrderBy(p => p.PpadSn) // default sorting aman
+                .Skip((page - 1) * size)
+                .Take(size)
+                .Select(p => new
+                {
+                    Regional = p.Branch.SysArea.Name,
+                    CabangInduk = p.Branch.Ctrlbr,
+                    KodeOutlet = p.Branch.Code,
+                    Location = p.Branch.Name,
+                    RegisterDate = p.PpadCreateDate,
+                    UpdateDate = p.PpadUpdateDate,
+                    SerialNumber = p.PpadSn,
+                    TID = p.PpadTid,
+                    StatusPinpad = p.PpadStatus,
+                    CreateBy = p.PpadCreateBy,
+                    IpLow = p.Branch.ppad_iplow,
+                    IpHigh = p.Branch.ppad_iphigh,
+                    LastActivity = p.PpadLastActivity
+                })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                Page = page,
+                Size = size,
+                TotalData = totalData,
+                TotalPages = (int)Math.Ceiling(totalData / (double)size),
+                Data = result
+            });
+        }
+
+
 
     }
 }

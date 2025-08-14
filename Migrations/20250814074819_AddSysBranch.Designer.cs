@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NewPinpadApi.Data;
 
@@ -11,9 +12,11 @@ using NewPinpadApi.Data;
 namespace NewPinpadApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250814074819_AddSysBranch")]
+    partial class AddSysBranch
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -125,7 +128,7 @@ namespace NewPinpadApi.Migrations
 
                     b.Property<string>("PpadBranch")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PpadBranchLama")
                         .IsRequired()
@@ -157,6 +160,7 @@ namespace NewPinpadApi.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PpadStatusLama")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PpadStatusRepair")
@@ -174,8 +178,6 @@ namespace NewPinpadApi.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("PpadId");
-
-                    b.HasIndex("PpadBranch");
 
                     b.ToTable("Pinpads");
                 });
@@ -225,7 +227,7 @@ namespace NewPinpadApi.Migrations
 
                     b.Property<string>("Code")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("CreateBy")
                         .HasColumnType("nvarchar(max)");
@@ -250,19 +252,19 @@ namespace NewPinpadApi.Migrations
 
             modelBuilder.Entity("NewPinpadApi.Models.SysBranch", b =>
                 {
-                    b.Property<int>("ID")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ID"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Area")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Code")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("CreateBy")
                         .IsRequired()
@@ -279,70 +281,30 @@ namespace NewPinpadApi.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("PpadIphigh")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PpadIplow")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("PpadSeq")
+                        .HasColumnType("int");
+
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("UpdateBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("UpdateDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ppad_iphigh")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ppad_iplow")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("ppad_seq")
-                        .HasColumnType("int");
-
-                    b.HasKey("ID");
-
-                    b.HasIndex("Area");
-
-                    b.HasIndex("Type");
-
-                    b.ToTable("SysBranches");
-                });
-
-            modelBuilder.Entity("NewPinpadApi.Models.SysBranchType", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("CreateBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreateDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("UpdateBy")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime>("UpdateDate")
+                    b.Property<DateTime?>("UpdateDate")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
-                    b.ToTable("SysBranchTypes");
+                    b.ToTable("SysBranches");
                 });
 
             modelBuilder.Entity("NewPinpadApi.Models.User", b =>
@@ -408,60 +370,12 @@ namespace NewPinpadApi.Migrations
                     b.Navigation("Regional");
                 });
 
-            modelBuilder.Entity("NewPinpadApi.Models.Pinpad", b =>
-                {
-                    b.HasOne("NewPinpadApi.Models.SysBranch", "Branch")
-                        .WithMany("Pinpads")
-                        .HasForeignKey("PpadBranch")
-                        .HasPrincipalKey("Code")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Branch");
-                });
-
-            modelBuilder.Entity("NewPinpadApi.Models.SysBranch", b =>
-                {
-                    b.HasOne("NewPinpadApi.Models.SysArea", "SysArea")
-                        .WithMany("Branches")
-                        .HasForeignKey("Area")
-                        .HasPrincipalKey("Code")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("NewPinpadApi.Models.SysBranchType", "SysBranchType")
-                        .WithMany("Branches")
-                        .HasForeignKey("Type")
-                        .HasPrincipalKey("Code")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("SysArea");
-
-                    b.Navigation("SysBranchType");
-                });
-
             modelBuilder.Entity("NewPinpadApi.Models.Branch", b =>
                 {
                     b.Navigation("ChildBranches");
                 });
 
             modelBuilder.Entity("NewPinpadApi.Models.Regional", b =>
-                {
-                    b.Navigation("Branches");
-                });
-
-            modelBuilder.Entity("NewPinpadApi.Models.SysArea", b =>
-                {
-                    b.Navigation("Branches");
-                });
-
-            modelBuilder.Entity("NewPinpadApi.Models.SysBranch", b =>
-                {
-                    b.Navigation("Pinpads");
-                });
-
-            modelBuilder.Entity("NewPinpadApi.Models.SysBranchType", b =>
                 {
                     b.Navigation("Branches");
                 });
