@@ -29,5 +29,6 @@ namespace NewPinpadApi.Models
 
         // Relasi navigasi
         public SysBranch Branch { get; set; }
+        public SysResponseCode StatusRepairCode { get; set; }
     }
 }

@@ -7,20 +7,11 @@ namespace NewPinpadApi.Data
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-        // Tabel untuk Regional
-        public DbSet<Regional> Regionals { get; set; }
-
-        // Tabel untuk Branch
-        public DbSet<Branch> Branches { get; set; }
-
         // Tabel untuk User
         public DbSet<User> Users { get; set; }
 
         // Tabel untuk Pinpad
         public DbSet<Pinpad> Pinpads { get; set; }
-
-        // Tabel untuk PinpadLogs
-        public DbSet<DeviceLog> DeviceLogs { get; set; }
 
         // Tabel untuk SysAreas
         public DbSet<SysArea> SysAreas { get; set; }
@@ -30,6 +21,13 @@ namespace NewPinpadApi.Data
 
         // Tabel untuk SysBranches
         public DbSet<SysBranch> SysBranches { get; set; }
+
+
+         // Tabel untuk Audit
+        public DbSet<Audit> Audits { get; set; }
+
+          // Tabel untuk SysResponseCode
+        public DbSet<SysResponseCode> SysResponseCodes { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -53,6 +51,13 @@ namespace NewPinpadApi.Data
                 .WithMany(b => b.Pinpads)
                 .HasForeignKey(p => p.PpadBranch)
                 .HasPrincipalKey(b => b.Code);
+
+            // Pinpad → SysResponseCode (Status Repair)
+            modelBuilder.Entity<Pinpad>()
+                .HasOne(p => p.StatusRepairCode)
+                .WithMany(r => r.Pinpads)
+                .HasForeignKey(p => p.PpadStatusRepair)
+                .HasPrincipalKey(r => r.RescodeCode);
 
             base.OnModelCreating(modelBuilder);
         }

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NewPinpadApi.Data;
 
@@ -11,9 +12,11 @@ using NewPinpadApi.Data;
 namespace NewPinpadApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250814213640_AddAuditAndRemoveRegionalAndBranchTable")]
+    partial class AddAuditAndRemoveRegionalAndBranchTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -62,6 +65,42 @@ namespace NewPinpadApi.Migrations
                     b.ToTable("Audits");
                 });
 
+            modelBuilder.Entity("NewPinpadApi.Models.DeviceLog", b =>
+                {
+                    b.Property<int>("DevlogId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("DevlogId"));
+
+                    b.Property<string>("DevlogBranch")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DevlogCreateBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("DevlogCreateDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DevlogSn")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DevlogStatus")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DevlogTrxCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("DevlogId");
+
+                    b.ToTable("DeviceLogs");
+                });
+
             modelBuilder.Entity("NewPinpadApi.Models.Pinpad", b =>
                 {
                     b.Property<int>("PpadId")
@@ -107,7 +146,7 @@ namespace NewPinpadApi.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PpadStatusRepair")
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PpadTid")
                         .IsRequired()
@@ -123,8 +162,6 @@ namespace NewPinpadApi.Migrations
                     b.HasKey("PpadId");
 
                     b.HasIndex("PpadBranch");
-
-                    b.HasIndex("PpadStatusRepair");
 
                     b.ToTable("Pinpads");
                 });
@@ -259,45 +296,6 @@ namespace NewPinpadApi.Migrations
                     b.ToTable("SysBranchTypes");
                 });
 
-            modelBuilder.Entity("NewPinpadApi.Models.SysResponseCode", b =>
-                {
-                    b.Property<int>("RescodeId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RescodeId"));
-
-                    b.Property<string>("RescodeCode")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("RescodeCreateBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("RescodeCreateDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("RescodeDesc")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("RescodeType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("RescodeUpdateBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("RescodeUpdateDate")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("RescodeId");
-
-                    b.ToTable("SysResponseCodes");
-                });
-
             modelBuilder.Entity("NewPinpadApi.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -353,14 +351,7 @@ namespace NewPinpadApi.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("NewPinpadApi.Models.SysResponseCode", "StatusRepairCode")
-                        .WithMany("Pinpads")
-                        .HasForeignKey("PpadStatusRepair")
-                        .HasPrincipalKey("RescodeCode");
-
                     b.Navigation("Branch");
-
-                    b.Navigation("StatusRepairCode");
                 });
 
             modelBuilder.Entity("NewPinpadApi.Models.SysBranch", b =>
@@ -397,11 +388,6 @@ namespace NewPinpadApi.Migrations
             modelBuilder.Entity("NewPinpadApi.Models.SysBranchType", b =>
                 {
                     b.Navigation("Branches");
-                });
-
-            modelBuilder.Entity("NewPinpadApi.Models.SysResponseCode", b =>
-                {
-                    b.Navigation("Pinpads");
                 });
 #pragma warning restore 612, 618
         }

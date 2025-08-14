@@ -338,3 +338,17 @@ C:\Users\Farhanfahrezyy\Documents\API\new-pinpad-api\bin\Debug\net9.0\Microsoft.
 C:\Users\Farhanfahrezyy\Documents\API\new-pinpad-api\bin\Debug\net9.0\System.Security.Cryptography.Pkcs.dll
 C:\Users\Farhanfahrezyy\Documents\API\new-pinpad-api\bin\Debug\net9.0\System.Security.Cryptography.Xml.dll
 C:\Users\Farhanfahrezyy\Documents\API\new-pinpad-api\bin\Debug\net9.0\runtimes\win\lib\net9.0\System.Security.Cryptography.Pkcs.dll
+C:\Users\Arya\Desktop\dotnet-projects\NewPinpadApi\bin\Debug\net9.0\BouncyCastle.Cryptography.dll
+C:\Users\Arya\Desktop\dotnet-projects\NewPinpadApi\bin\Debug\net9.0\EPPlus.dll
+C:\Users\Arya\Desktop\dotnet-projects\NewPinpadApi\bin\Debug\net9.0\EPPlus.Interfaces.dll
+C:\Users\Arya\Desktop\dotnet-projects\NewPinpadApi\bin\Debug\net9.0\itextsharp.dll
+C:\Users\Arya\Desktop\dotnet-projects\NewPinpadApi\bin\Debug\net9.0\Microsoft.Extensions.Configuration.dll
+C:\Users\Arya\Desktop\dotnet-projects\NewPinpadApi\bin\Debug\net9.0\Microsoft.Extensions.Configuration.FileExtensions.dll
+C:\Users\Arya\Desktop\dotnet-projects\NewPinpadApi\bin\Debug\net9.0\Microsoft.Extensions.Configuration.Json.dll
+C:\Users\Arya\Desktop\dotnet-projects\NewPinpadApi\bin\Debug\net9.0\Microsoft.Extensions.FileProviders.Abstractions.dll
+C:\Users\Arya\Desktop\dotnet-projects\NewPinpadApi\bin\Debug\net9.0\Microsoft.Extensions.FileProviders.Physical.dll
+C:\Users\Arya\Desktop\dotnet-projects\NewPinpadApi\bin\Debug\net9.0\Microsoft.Extensions.FileSystemGlobbing.dll
+C:\Users\Arya\Desktop\dotnet-projects\NewPinpadApi\bin\Debug\net9.0\Microsoft.IO.RecyclableMemoryStream.dll
+C:\Users\Arya\Desktop\dotnet-projects\NewPinpadApi\bin\Debug\net9.0\System.Security.Cryptography.Pkcs.dll
+C:\Users\Arya\Desktop\dotnet-projects\NewPinpadApi\bin\Debug\net9.0\System.Security.Cryptography.Xml.dll
+C:\Users\Arya\Desktop\dotnet-projects\NewPinpadApi\bin\Debug\net9.0\runtimes\win\lib\net9.0\System.Security.Cryptography.Pkcs.dll
