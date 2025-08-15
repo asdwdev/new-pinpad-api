@@ -140,7 +140,7 @@ namespace NewPinpadApi.Controllers
             });
         }
         
-        [HttpPut("{id}/maintenance")]
+       [HttpPut("{id}/maintenance")]
         public async Task<IActionResult> UpdateMaintenance(int id, [FromBody] MaintenanceUpdateDto req)
         {
             if (string.IsNullOrWhiteSpace(req.StatusRepair))
@@ -171,7 +171,7 @@ namespace NewPinpadApi.Controllers
                 .Select(p => p.PpadStatusRepair)
                 .FirstOrDefaultAsync();
 
-            if (oldStatusRepair == null && oldStatusRepair != null) // null check
+            if (oldStatusRepair == null)
             {
                 return NotFound(new
                 {
@@ -180,7 +180,7 @@ namespace NewPinpadApi.Controllers
                 });
             }
 
-            // UPDATE pakai raw SQL supaya EF nggak bentrok sama trigger
+            // Update langsung pakai raw SQL
             await _context.Database.ExecuteSqlRawAsync(
                 "UPDATE Pinpads SET PpadStatusRepair = {0}, PpadUpdateBy = {1}, PpadUpdateDate = {2} WHERE PpadId = {3}",
                 req.StatusRepair,
@@ -189,15 +189,13 @@ namespace NewPinpadApi.Controllers
                 id
             );
 
-            // Simpan audit (pisah supaya tidak ikut trigger)
+            // Audit log
             var audit = new Audit
             {
                 TableName = "Pinpad",
                 DateTimes = DateTime.Now,
                 KeyValues = $"PpadId: {id}",
-                OldValues = oldStatusRepair != null
-                    ? $"{{\"PpadStatusRepair\":\"{oldStatusRepair}\"}}"
-                    : "{}",
+                OldValues = $"{{\"PpadStatusRepair\":\"{oldStatusRepair}\"}}",
                 NewValues = $"{{\"PpadStatusRepair\":\"{req.StatusRepair}\"}}",
                 Username = User?.Identity?.Name ?? "system",
                 ActionType = "Modified"
@@ -248,25 +246,19 @@ namespace NewPinpadApi.Controllers
             return Ok(p);
         }
 
-
-       [HttpGet("repair-codes")]
-        public async Task<IActionResult> GetRepairCodes()
+        [HttpGet("status-repairs")]
+        public async Task<IActionResult> GetStatusRepairs()
         {
-            var data = await _context.SysResponseCodes
-                .Where(r => r.RescodeType == "KERUSAKAN")
+            var list = await _context.SysResponseCodes
+                .Where(r => r.RescodeType == "StatusRepair")
                 .Select(r => new {
                     Code = r.RescodeCode,
-                    Desc = r.RescodeDesc
+                    Description = r.RescodeDesc
                 })
                 .ToListAsync();
 
-            return Ok(data);
+            return Ok(list);
         }
-
-
-
-
-
 
          // GET: api/Pinpad/GetBranches
         [HttpGet("GetBranches")]
