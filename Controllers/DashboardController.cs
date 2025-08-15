@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NewPinpadApi.Data;
+using NewPinpadApi.Models;
 
 namespace NewPinpadApi.Controllers
 {
@@ -18,37 +19,20 @@ namespace NewPinpadApi.Controllers
         }
 
         [HttpGet("summary")]
-        public async Task<IActionResult> GetDashboardSummary()
+        public async Task<IActionResult> GetDashboard()
         {
-            try
+            var dashboard = new Dashboard
             {
-                // Group pinpad berdasarkan status dan hitung jumlah masing-masing
-                var data = await _context.Pinpads
-                    .GroupBy(p => p.PpadStatus)
-                    .Select(g => new
-                    {
-                        status = g.Key,
-                        count = g.Count()
-                    })
-                    .ToListAsync();
+                Total = await _context.Pinpads.CountAsync(),
+                NotReady = await _context.Pinpads.CountAsync(p => p.PpadStatus == "Not Ready To Use"),
+                Ready = await _context.Pinpads.CountAsync(p => p.PpadStatus == "Ready To Use"),
+                Active = await _context.Pinpads.CountAsync(p => p.PpadStatus == "Active"),
+                Inactive = await _context.Pinpads.CountAsync(p => p.PpadStatus == "Inactive"),
+                Maintenance = await _context.Pinpads.CountAsync(p => !string.IsNullOrEmpty(p.PpadStatusRepair))
+            };
 
-                return Ok(new
-                {
-                    success = true,
-                    message = "Dashboard summary retrieved",
-                    data
-                });
-            }
-            catch (Exception ex)
-            {
-                // Kalau ada error
-                return StatusCode(500, new
-                {
-                    success = false,
-                    message = "Failed to retrieve dashboard summary",
-                    error = ex.Message
-                });
-            }
+            return Ok(dashboard);
         }
+
     }
 }
