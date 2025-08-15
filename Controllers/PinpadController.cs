@@ -24,13 +24,17 @@ namespace NewPinpadApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetPinpadDetails(
             [FromQuery] string? status,
-            [FromQuery] string? loc,
+            [FromQuery] string? loc, // Regional
+            [FromQuery] string? cabangInduk,
+            [FromQuery] string? serialNumber, // Filter khusus serial number
             [FromQuery] string? q,
             [FromQuery] int page = 1,
             [FromQuery] int size = 10)
         {
             status = string.IsNullOrWhiteSpace(status) ? null : status.Trim();
             loc = string.IsNullOrWhiteSpace(loc) ? null : loc.Trim();
+            cabangInduk = string.IsNullOrWhiteSpace(cabangInduk) ? null : cabangInduk.Trim();
+            serialNumber = string.IsNullOrWhiteSpace(serialNumber) ? null : serialNumber.Trim();
             q = string.IsNullOrWhiteSpace(q) ? null : q.Trim();
 
             var query = _context.Pinpads
@@ -38,12 +42,23 @@ namespace NewPinpadApi.Controllers
                     .ThenInclude(b => b.SysArea)
                 .AsQueryable();
 
+            // Filter status pinpad
             if (!string.IsNullOrEmpty(status))
                 query = query.Where(p => p.PpadStatus == status);
 
+            // Filter regional berdasarkan SysArea.Name
             if (!string.IsNullOrEmpty(loc))
-                query = query.Where(p => p.Branch.Name.Contains(loc));
+                query = query.Where(p => p.Branch.SysArea.Name.Contains(loc));
 
+            // Filter cabang induk berdasarkan Branch.Ctrlbr
+            if (!string.IsNullOrEmpty(cabangInduk))
+                query = query.Where(p => p.Branch.Ctrlbr.Contains(cabangInduk));
+
+            // Filter khusus serial number
+            if (!string.IsNullOrEmpty(serialNumber))
+                query = query.Where(p => p.PpadSn.Contains(serialNumber));
+
+            // Pencarian bebas
             if (!string.IsNullOrEmpty(q))
             {
                 query = query.Where(p =>
@@ -61,31 +76,33 @@ namespace NewPinpadApi.Controllers
                 .Take(size)
                 .Select(p => new
                 {
-                    Regional = p.Branch.SysArea.Name,
-                    CabangInduk = p.Branch.Ctrlbr,
-                    KodeOutlet = p.Branch.Code,
-                    Location = p.Branch.Name,
-                    RegisterDate = p.PpadCreateDate,
-                    UpdateDate = p.PpadUpdateDate,
-                    SerialNumber = p.PpadSn,
-                    TID = p.PpadTid,
-                    StatusPinpad = p.PpadStatus,
-                    CreateBy = p.PpadCreateBy,
-                    IpLow = p.Branch.ppad_iplow,
-                    IpHigh = p.Branch.ppad_iphigh,
-                    LastActivity = p.PpadLastActivity
+                    regional = p.Branch.SysArea.Name,
+                    cabangInduk = p.Branch.Ctrlbr,
+                    kodeOutlet = p.Branch.Code,
+                    location = p.Branch.Name,
+                    registerDate = p.PpadCreateDate,
+                    updateDate = p.PpadUpdateDate,
+                    serialNumber = p.PpadSn,
+                    tid = p.PpadTid,
+                    statusPinpad = p.PpadStatus,
+                    createBy = p.PpadCreateBy,
+                    ipLow = p.Branch.ppad_iplow,
+                    ipHigh = p.Branch.ppad_iphigh,
+                    lastActivity = p.PpadLastActivity
                 })
                 .ToListAsync();
 
             return Ok(new
             {
-                Page = page,
-                Size = size,
-                TotalData = totalData,
-                TotalPages = (int)Math.Ceiling(totalData / (double)size),
-                Data = result
+                page,
+                size,
+                totalData,
+                totalPages = (int)Math.Ceiling(totalData / (double)size),
+                data = result
             });
         }
+
+
 
         [HttpGet("inquiry")]
         public async Task<IActionResult> GetSimplePinpadList(
@@ -140,7 +157,7 @@ namespace NewPinpadApi.Controllers
             });
         }
         
-       [HttpPut("{id}/maintenance")]
+        [HttpPut("{id}/maintenance")]
         public async Task<IActionResult> UpdateMaintenance(int id, [FromBody] MaintenanceUpdateDto req)
         {
             if (string.IsNullOrWhiteSpace(req.StatusRepair))
@@ -171,7 +188,7 @@ namespace NewPinpadApi.Controllers
                 .Select(p => p.PpadStatusRepair)
                 .FirstOrDefaultAsync();
 
-            if (oldStatusRepair == null)
+            if (oldStatusRepair == null && oldStatusRepair != null) // null check
             {
                 return NotFound(new
                 {
@@ -180,7 +197,7 @@ namespace NewPinpadApi.Controllers
                 });
             }
 
-            // Update langsung pakai raw SQL
+            // UPDATE pakai raw SQL supaya EF nggak bentrok sama trigger
             await _context.Database.ExecuteSqlRawAsync(
                 "UPDATE Pinpads SET PpadStatusRepair = {0}, PpadUpdateBy = {1}, PpadUpdateDate = {2} WHERE PpadId = {3}",
                 req.StatusRepair,
@@ -189,13 +206,15 @@ namespace NewPinpadApi.Controllers
                 id
             );
 
-            // Audit log
+            // Simpan audit (pisah supaya tidak ikut trigger)
             var audit = new Audit
             {
                 TableName = "Pinpad",
                 DateTimes = DateTime.Now,
                 KeyValues = $"PpadId: {id}",
-                OldValues = $"{{\"PpadStatusRepair\":\"{oldStatusRepair}\"}}",
+                OldValues = oldStatusRepair != null
+                    ? $"{{\"PpadStatusRepair\":\"{oldStatusRepair}\"}}"
+                    : "{}",
                 NewValues = $"{{\"PpadStatusRepair\":\"{req.StatusRepair}\"}}",
                 Username = User?.Identity?.Name ?? "system",
                 ActionType = "Modified"
