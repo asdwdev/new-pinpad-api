@@ -1355,8 +1355,5 @@ namespace NewPinpadApi.Controllers
 
     }
 
-
-
-
     }
 }
