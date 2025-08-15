@@ -120,13 +120,14 @@ namespace NewPinpadApi.Controllers
                 .OrderByDescending(p => p.PpadCreateDate) // DESC default
                 .Skip((page - 1) * size)
                 .Take(size)
-                .Select(p => new
-                {
-                    Branch = p.Branch.Code,
-                    SerialNumber = p.PpadSn,
-                    RegisterDate = p.PpadCreateDate,
-                    Status = p.PpadStatus
-                })
+               .Select(p => new
+                    {
+                        id = p.PpadId, 
+                        branch = p.Branch.Code,
+                        serialNumber = p.PpadSn,
+                        registerDate = p.PpadCreateDate,
+                        status = p.PpadStatus
+                    })
                 .ToListAsync();
 
             return Ok(new
@@ -219,70 +220,52 @@ namespace NewPinpadApi.Controllers
             });
         }
 
-
-        [HttpGet("dashboard")]
-        public async Task<IActionResult> GetDashboard()
-        {
-            var dashboardData = await _context.Pinpads
-                .GroupBy(p => p.PpadBranch)
-                .Select(g => new 
-                {
-                    Code = g.Key,
-                    Total = g.Count(),
-                    NotReady = g.Count(p => p.PpadStatus == "Not Ready To Use"),
-                    Ready = g.Count(p => p.PpadStatus == "Ready To Use"),
-                    Active = g.Count(p => p.PpadStatus == "Active"),
-                    Inactive = g.Count(p => p.PpadStatus == "Inactive"),
-                    Maintenance = g.Count(p => p.PpadStatus == "Maintenance")
-                })
-                .ToListAsync();
-
-            return Ok(dashboardData);
-        }
-
-
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
-            // Cari pinpad berdasarkan ID
-            var data = await _context.Pinpads
-                .Where(p => p.PpadId == id)
-                .Select(p => new
-                {
-                    ppadId = p.PpadId,
-                    ppadSn = p.PpadSn,
-                    ppadStatus = p.PpadStatus,
-                    ppadBranch = p.PpadBranch,
-                    ppadBranchLama = p.PpadBranchLama,
-                    ppadStatusRepair = p.PpadStatusRepair,
-                    ppadStatusLama = p.PpadStatusLama,
-                    ppadTid = p.PpadTid,
-                    ppadFlag = p.PpadFlag,
-                    ppadLastLogin = p.PpadLastLogin,
-                    ppadLastActivity = p.PpadLastActivity,
-                    ppadCreateBy = p.PpadCreateBy,
-                    ppadCreateDate = p.PpadCreateDate,
-                    ppadUpdateBy = p.PpadUpdateBy,
-                    ppadUpdateDate = p.PpadUpdateDate
+            var p = await _context.Pinpads
+                .Include(x => x.Branch)
+                    .ThenInclude(b => b.SysArea)
+                .Include(x => x.StatusRepairCode) // pastikan join ke SysResponseCode
+                .Where(x => x.PpadId == id)
+                .Select(x => new {
+                    Id = x.PpadId,
+                    SerialNumber = x.PpadSn,
+                    Regional = x.Branch.SysArea.Name,
+                    CabangInduk = x.Branch.Ctrlbr,
+                    OutletCode = x.Branch.Code,
+                    OutletName = x.Branch.Name,
+                    IpLow = x.Branch.ppad_iplow,
+                    IpHigh = x.Branch.ppad_iphigh,
+                    RegisterDate = x.PpadCreateDate,
+                    StatusPinpad = x.PpadStatus,
+                    StatusRepairCode = x.PpadStatusRepair, // ini kode SR101
+                    StatusRepairDesc = x.StatusRepairCode.RescodeDesc // ini deskripsi
                 })
                 .FirstOrDefaultAsync();
 
-            if (data == null)
-            {
-                return NotFound(new
-                {
-                    success = false,
-                    message = "Pinpad not found"
-                });
-            }
-
-            return Ok(new
-            {
-                success = true,
-                message = "Pinpad detail retrieved",
-                data
-            });
+            if (p == null) return NotFound();
+            return Ok(p);
         }
+
+
+       [HttpGet("repair-codes")]
+        public async Task<IActionResult> GetRepairCodes()
+        {
+            var data = await _context.SysResponseCodes
+                .Where(r => r.RescodeType == "KERUSAKAN")
+                .Select(r => new {
+                    Code = r.RescodeCode,
+                    Desc = r.RescodeDesc
+                })
+                .ToListAsync();
+
+            return Ok(data);
+        }
+
+
+
+
 
 
          // GET: api/Pinpad/GetBranches
