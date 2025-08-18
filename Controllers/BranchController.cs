@@ -194,7 +194,45 @@ namespace NewPinpadApi.Controllers
             });
         }
 
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteBranch(int id)
+        {
+            var branch = await _context.SysBranches
+                                       .Include(b => b.Pinpads) // relasi child "outlet/pinpad"
+                                       .FirstOrDefaultAsync(b => b.ID == id);
 
+            if (branch == null)
+                return NotFound(new { message = $"Branch dengan ID {id} tidak ditemukan." });
+
+            // Cek apakah branch masih punya child (misal: pinpad/outlet)
+            if (branch.Pinpads != null && branch.Pinpads.Any())
+            {
+                return BadRequest(new { message = "Gagal menghapus, masih ada child outlet/pinpad di bawah branch ini." });
+            }
+
+            // Simpan old values untuk audit
+            var oldValues = $"{{\"Code\":\"{branch.Code}\",\"Name\":\"{branch.Name}\"}}";
+
+            _context.SysBranches.Remove(branch);
+            await _context.SaveChangesAsync();
+
+            // Audit
+            var audit = new Audit
+            {
+                TableName = "SysBranches",
+                DateTimes = DateTime.Now,
+                KeyValues = $"ID: {branch.ID}",
+                OldValues = oldValues,
+                NewValues = "{}", // kosong karena data dihapus
+                Username = User?.Identity?.Name ?? "system",
+                ActionType = "Deleted"
+            };
+
+            _context.Audits.Add(audit);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = $"Branch dengan ID {id} berhasil dihapus." });
+        }
 
     }
 }

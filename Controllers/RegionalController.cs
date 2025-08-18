@@ -181,6 +181,5 @@ namespace NewPinpadApi.Controllers
 
             return Ok(new { message = $"Regional dengan ID {id} berhasil dihapus." });
         }
-
     }
 }
