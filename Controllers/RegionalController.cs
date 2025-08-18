@@ -32,6 +32,7 @@ namespace NewPinpadApi.Controllers
             return Ok(regionals);
         }
 
+
         // POST: api/regionals
         [HttpPost]
         public async Task<IActionResult> CreateRegional([FromBody] RegionalCreateRequest request)
@@ -60,6 +61,51 @@ namespace NewPinpadApi.Controllers
 
             return CreatedAtAction(nameof(GetRegionals), new { id = newRegional.ID }, newRegional);
         }
+
+        // GET: api/regionals/{id}
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetRegionalById(int id)
+        {
+            var regional = await _context.SysAreas
+                                        .FirstOrDefaultAsync(r => r.ID == id);
+
+            if (regional == null)
+            {
+                return NotFound(new { message = $"Regional dengan ID {id} tidak ditemukan." });
+            }
+
+            return Ok(regional);
+        }
+
+        // PUT: api/regionals/{id}
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateRegional(int id, [FromBody] RegionalUpdateRequest request)
+        {
+            if (request == null)
+                return BadRequest(new { message = "Data tidak boleh kosong." });
+
+            var regional = await _context.SysAreas.FirstOrDefaultAsync(r => r.ID == id);
+
+            if (regional == null)
+                return NotFound(new { message = $"Regional dengan ID {id} tidak ditemukan." });
+
+            // Cek apakah kode sudah dipakai regional lain
+            bool exists = await _context.SysAreas.AnyAsync(r => r.Code == request.Code && r.ID != id);
+            if (exists)
+                return Conflict(new { message = $"Kode area '{request.Code}' sudah digunakan oleh regional lain." });
+
+            // Update fields
+            regional.Code = request.Code;
+            regional.Name = request.Name;
+            regional.UpdateDate = DateTime.UtcNow;
+            regional.UpdateBy = "system";
+
+            _context.SysAreas.Update(regional);
+            await _context.SaveChangesAsync();
+
+            return Ok(regional);
+        }
+
 
     }
 }
