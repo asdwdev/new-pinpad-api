@@ -37,24 +37,22 @@ namespace NewPinpadApi.Controllers
         public async Task<IActionResult> CreateRegional([FromBody] RegionalCreateRequest request)
         {
             if (request == null)
-            {
                 return BadRequest(new { message = "Data tidak boleh kosong." });
-            }
 
+            // Cek kode unik
             bool exists = await _context.SysAreas.AnyAsync(r => r.Code == request.Code);
             if (exists)
-            {
                 return Conflict(new { message = $"Kode area '{request.Code}' sudah digunakan." });
-            }
 
             var newRegional = new SysArea
             {
                 Code = request.Code,
                 Name = request.Name,
-                CreateBy = request.CreateBy,
                 CreateDate = DateTime.UtcNow,
-                UpdateBy = request.CreateBy,
-                UpdateDate = DateTime.UtcNow
+                CreateBy = "system",
+                UpdateDate = DateTime.UtcNow,
+                UpdateBy = "system",
+                Branches = new List<SysBranch>()
             };
 
             _context.SysAreas.Add(newRegional);
@@ -62,5 +60,6 @@ namespace NewPinpadApi.Controllers
 
             return CreatedAtAction(nameof(GetRegionals), new { id = newRegional.ID }, newRegional);
         }
+
     }
 }
