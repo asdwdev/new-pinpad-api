@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NewPinpadApi.Data;
+using NewPinpadApi.DTOs;
+using NewPinpadApi.Models;
 
 namespace NewPinpadApi.Controllers
 {
@@ -15,7 +17,7 @@ namespace NewPinpadApi.Controllers
             _context = context;
         }
 
-
+        // GET: api/regionals
         [HttpGet]
         public async Task<IActionResult> GetRegionals()
         {
@@ -28,6 +30,37 @@ namespace NewPinpadApi.Controllers
                 return NotFound(new { message = "Data regional tidak ditemukan." });
             }
             return Ok(regionals);
+        }
+
+        // POST: api/regionals
+        [HttpPost]
+        public async Task<IActionResult> CreateRegional([FromBody] RegionalCreateRequest request)
+        {
+            if (request == null)
+            {
+                return BadRequest(new { message = "Data tidak boleh kosong." });
+            }
+
+            bool exists = await _context.SysAreas.AnyAsync(r => r.Code == request.Code);
+            if (exists)
+            {
+                return Conflict(new { message = $"Kode area '{request.Code}' sudah digunakan." });
+            }
+
+            var newRegional = new SysArea
+            {
+                Code = request.Code,
+                Name = request.Name,
+                CreateBy = request.CreateBy,
+                CreateDate = DateTime.UtcNow,
+                UpdateBy = request.CreateBy,
+                UpdateDate = DateTime.UtcNow
+            };
+
+            _context.SysAreas.Add(newRegional);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetRegionals), new { id = newRegional.ID }, newRegional);
         }
     }
 }
