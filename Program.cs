@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using NewPinpadApi.Data;
+using OfficeOpenXml;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +22,40 @@ builder.Services.AddSession(options =>
     options.IdleTimeout = TimeSpan.FromMinutes(60);          // auto-expire kalau idle
     options.Cookie.IsEssential = true;                       // biar gak keblokir consent
 });
+
+try
+{
+    // EPPlus v5..v7
+    ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+}
+catch
+{
+    try
+    {
+        // Fallback for EPPlus v8+ where ExcelPackage.License may exist
+        var epType = typeof(ExcelPackage);
+        var licenseProp = epType.GetProperty("License", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+        if (licenseProp != null)
+        {
+            var licenseType = licenseProp.PropertyType;
+            // Try to find a static setter method on the license type (SetLicense / SetLicenseContext / Set)
+            var setMethod = licenseType.GetMethod("SetLicense", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
+                         ?? licenseType.GetMethod("SetLicenseContext", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
+                         ?? licenseType.GetMethod("Set", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+
+            var enumType = epType.Assembly.GetType("OfficeOpenXml.LicenseContext") ?? epType.Assembly.GetType("OfficeOpenXml.License");
+            if (setMethod != null && enumType != null)
+            {
+                var nonCommercial = Enum.Parse(enumType, "NonCommercial");
+                setMethod.Invoke(null, new object[] { nonCommercial });
+            }
+        }
+    }
+    catch
+    {
+        // jika semua cara gagal, biarkan EPPlus melempar error saat digunakan — fallback CSV akan menolong
+    }
+}
 
 // Tambahkan CORS
 builder.Services.AddCors(options =>
@@ -66,7 +102,7 @@ var summaries = new[]
 
 app.MapGet("/weatherforecast", () =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
+    var forecast = Enumerable.Range(1, 5).Select(index =>
         new WeatherForecast
         (
             DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
