@@ -298,68 +298,67 @@ namespace NewPinpadApi.Controllers
 
         [HttpGet("export")]
         public async Task<IActionResult> ExportBranches(
-        string format = "csv",
-        string? type = null,
-        string? code = null,
-        string? area = null,
-        string? name = null)
+            string format = "csv",
+            string? type = null,
+            string? code = null,
+            string? area = null,
+            string? name = null)
         {
             try
             {
-                // Simulasi proses export yang membutuhkan waktu
-                await Task.Delay(2000); // Tunggu 2 detik untuk simulasi
+                // Simulasi proses export (delay 2 detik)
+                await Task.Delay(2000);
 
-                var query = from b in _context.SysBranches
-                            select new BranchExportDto
-                            {
-                                KantorWilayah = b.SysArea != null ? b.SysArea.Name : "",
-                                KodeCabangInduk = b.Ctrlbr ?? "",
-                                CodeOutlet = b.Code ?? "",
-                                NamaOutlet = b.Name ?? "",
-                                Regional = b.Area ?? "",
-                                KelasOutlet = b.Type ?? "",
-                                IPLow = b.ppad_iplow ?? "",
-                                IPHigh = b.ppad_iphigh ?? "",
-                                ID = b.ID,
-                                CreateDate = b.CreateDate,
-                                CreateBy = b.CreateBy ?? "",
-                                UpdateDate = b.UpdateDate,
-                                UpdateBy = b.UpdateBy ?? ""
-                            };
-                // Debug: Log the initial query count
-                var initialCount = await query.CountAsync();
+                // Mulai query dari entity
+                var query = _context.SysBranches.AsQueryable();
 
                 // Apply filters
                 if (!string.IsNullOrEmpty(type))
                 {
-                    query = query.Where(b => b.KelasOutlet.ToLower() == type.ToLower());
+                    query = query.Where(b => b.Type != null && b.Type.ToLower() == type.ToLower());
                 }
 
                 if (!string.IsNullOrEmpty(code))
                 {
-                    query = query.Where(b => b.CodeOutlet.ToLower().Contains(code.ToLower()));
+                    query = query.Where(b => b.Code != null && b.Code.ToLower().Contains(code.ToLower()));
                 }
 
                 if (!string.IsNullOrEmpty(area))
                 {
-                    query = query.Where(b => b.Regional.ToLower().Contains(area.ToLower()));
+                    query = query.Where(b => b.SysArea != null &&
+                                             b.SysArea.Name.ToLower().Contains(area.ToLower()));
                 }
 
                 if (!string.IsNullOrEmpty(name))
                 {
-                    query = query.Where(b => b.NamaOutlet.ToLower().Contains(name.ToLower()));
+                    query = query.Where(b => b.Name != null && b.Name.ToLower().Contains(name.ToLower()));
                 }
 
-                var branches = await query.ToListAsync();
+                // Eksekusi query dengan projection ke DTO
+                var branches = await query.Select(b => new BranchExportDto
+                {
+                    KantorWilayah = b.SysArea != null ? b.SysArea.Name : "",
+                    KodeCabangInduk = b.Ctrlbr ?? "",
+                    CodeOutlet = b.Code ?? "",
+                    NamaOutlet = b.Name ?? "",
+                    Regional = b.Area ?? "",
+                    KelasOutlet = b.Type ?? "",
+                    IPLow = b.ppad_iplow ?? "",
+                    IPHigh = b.ppad_iphigh ?? "",
+                    ID = b.ID,
+                    CreateDate = b.CreateDate,
+                    CreateBy = b.CreateBy ?? "",
+                    UpdateDate = b.UpdateDate,
+                    UpdateBy = b.UpdateBy ?? ""
+                }).ToListAsync();
 
-                // Debug: Log filter details
+                // Debug info
                 var debugInfo = new
                 {
                     filtersApplied = new { type, code, area, name },
-                    initialCount,
                     finalCount = branches.Count,
                     hasFilters = !string.IsNullOrEmpty(type) || !string.IsNullOrEmpty(code) ||
-                                !string.IsNullOrEmpty(area) || !string.IsNullOrEmpty(name)
+                                 !string.IsNullOrEmpty(area) || !string.IsNullOrEmpty(name)
                 };
 
                 if (!branches.Any())
@@ -372,26 +371,21 @@ namespace NewPinpadApi.Controllers
                     });
                 }
 
-                switch (format.ToLower())
+                // Export sesuai format
+                return format.ToLower() switch
                 {
-                    case "csv":
-                        var csvFile = GenerateBranchCsv(branches);
-                        return File(csvFile, "text/csv", "BranchExport.csv");
-                    case "xlsx":
-                        var excelFile = GenerateBranchExcel(branches);
-                        return File(excelFile, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "BranchExport.xlsx");
-                    case "pdf":
-                        var pdfFile = GenerateBranchPdf(branches);
-                        return File(pdfFile, "application/pdf", "BranchExport.pdf");
-                    default:
-                        return BadRequest(new { success = false, message = "Format tidak didukung. Gunakan 'csv', 'xlsx', atau 'pdf'." });
-                }
+                    "csv" => File(GenerateBranchCsv(branches), "text/csv", "BranchExport.csv"),
+                    "xlsx" => File(GenerateBranchExcel(branches), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "BranchExport.xlsx"),
+                    "pdf" => File(GenerateBranchPdf(branches), "application/pdf", "BranchExport.pdf"),
+                    _ => BadRequest(new { success = false, message = "Format tidak didukung. Gunakan 'csv', 'xlsx', atau 'pdf'." })
+                };
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { success = false, message = "Export gagal.", error = ex.Message });
             }
         }
+
 
         // Method helper untuk generate CSV
         private byte[] GenerateBranchCsv(List<BranchExportDto> branches)
@@ -507,147 +501,127 @@ namespace NewPinpadApi.Controllers
         {
             using (var memoryStream = new MemoryStream())
             {
-                using (var doc = new Document(PageSize.A4.Rotate(), 20, 20, 30, 30)) // Landscape dengan margin yang lebih baik
+                using (var doc = new Document(PageSize.A4.Rotate(), 20, 20, 30, 30)) // Landscape
                 {
                     PdfWriter.GetInstance(doc, memoryStream);
                     doc.Open();
 
-                    // Header dengan logo dan informasi perusahaan
-                    var headerTable = new PdfPTable(2);
-                    headerTable.WidthPercentage = 100;
+                    // Header
+                    var headerTable = new PdfPTable(2) { WidthPercentage = 100 };
                     headerTable.SetWidths(new float[] { 1f, 1f });
 
-                    // Logo/Company Info (kiri)
-                    var companyCell = new PdfPCell(new Phrase("BRANCH MANAGEMENT SYSTEM", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 18, new BaseColor(64, 64, 64)))); // Dark gray color
-                    companyCell.Border = Rectangle.NO_BORDER;
-                    companyCell.HorizontalAlignment = Element.ALIGN_LEFT;
-                    companyCell.VerticalAlignment = Element.ALIGN_MIDDLE;
-                    companyCell.PaddingBottom = 10;
+                    var companyCell = new PdfPCell(new Phrase("BRANCH MANAGEMENT SYSTEM",
+                        FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 18, new BaseColor(64, 64, 64))))
+                    {
+                        Border = Rectangle.NO_BORDER,
+                        HorizontalAlignment = Element.ALIGN_LEFT,
+                        VerticalAlignment = Element.ALIGN_MIDDLE,
+                        PaddingBottom = 10
+                    };
                     headerTable.AddCell(companyCell);
 
-                    // Export Info (kanan)
                     var exportInfo = new Paragraph();
                     exportInfo.Add(new Chunk("Generated: ", FontFactory.GetFont(FontFactory.HELVETICA, 10)));
-                    exportInfo.Add(new Chunk(DateTime.Now.ToString("dd MMMM yyyy HH:mm:ss"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)));
+                    exportInfo.Add(new Chunk(DateTime.Now.ToString("dd MMMM yyyy HH:mm:ss"),
+                        FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)));
                     exportInfo.Add(new Chunk("\nTotal Records: ", FontFactory.GetFont(FontFactory.HELVETICA, 10)));
-                    exportInfo.Add(new Chunk(branches.Count.ToString(), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)));
+                    exportInfo.Add(new Chunk(branches.Count.ToString(),
+                        FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)));
 
-                    var exportCell = new PdfPCell(exportInfo);
-                    exportCell.Border = Rectangle.NO_BORDER;
-                    exportCell.HorizontalAlignment = Element.ALIGN_RIGHT;
-                    exportCell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                    var exportCell = new PdfPCell(exportInfo)
+                    {
+                        Border = Rectangle.NO_BORDER,
+                        HorizontalAlignment = Element.ALIGN_RIGHT,
+                        VerticalAlignment = Element.ALIGN_MIDDLE
+                    };
                     headerTable.AddCell(exportCell);
 
                     doc.Add(headerTable);
-                    doc.Add(new Paragraph(" ")); // Spacing
+                    doc.Add(new Paragraph(" "));
 
-                    // Title dengan styling yang lebih menarik
-                    var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16, new BaseColor(255, 255, 255)); // White color
-                    var title = new Paragraph("BRANCH DATA EXPORT", titleFont);
-                    title.Alignment = Element.ALIGN_CENTER;
+                    // Title
+                    var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16, new BaseColor(255, 255, 255));
+                    var title = new Paragraph("BRANCH DATA EXPORT", titleFont) { Alignment = Element.ALIGN_CENTER };
 
-                    var titleCell = new PdfPCell(title);
-                    titleCell.BackgroundColor = new BaseColor(68, 114, 196); // Biru corporate
-                    titleCell.Border = Rectangle.NO_BORDER;
-                    titleCell.PaddingTop = 8;
-                    titleCell.PaddingBottom = 8;
-                    titleCell.HorizontalAlignment = Element.ALIGN_CENTER;
+                    var titleCell = new PdfPCell(title)
+                    {
+                        BackgroundColor = new BaseColor(68, 114, 196),
+                        Border = Rectangle.NO_BORDER,
+                        PaddingTop = 8,
+                        PaddingBottom = 8,
+                        HorizontalAlignment = Element.ALIGN_CENTER
+                    };
 
-                    var titleTable = new PdfPTable(1);
-                    titleTable.WidthPercentage = 100;
+                    var titleTable = new PdfPTable(1) { WidthPercentage = 100 };
                     titleTable.AddCell(titleCell);
                     doc.Add(titleTable);
-                    doc.Add(new Paragraph(" ")); // Spacing
+                    doc.Add(new Paragraph(" "));
 
-                    // Table dengan desain yang lebih baik
-                    var table = new PdfPTable(8);
-                    table.WidthPercentage = 100;
-                    table.SpacingBefore = 10;
-                    table.SpacingAfter = 10;
-
-                    // Set column widths untuk optimasi layout
+                    // Table
+                    var table = new PdfPTable(8) { WidthPercentage = 100, SpacingBefore = 10, SpacingAfter = 10 };
                     table.SetWidths(new float[] { 2.5f, 1.8f, 1.5f, 3f, 2f, 1.5f, 1.5f, 1.5f });
 
-                    // Header styling
-                    var headerFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, new BaseColor(255, 255, 255)); // White color
+                    var headerFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.WHITE);
                     var headerBackground = new BaseColor(68, 114, 196);
 
-                    // Headers dengan styling yang konsisten
                     var headers = new[] { "Kantor Wilayah", "Kode Cabang Induk", "Code Outlet", "Nama Outlet", "Regional", "Kelas Outlet", "IP Low", "IP High" };
 
                     foreach (var header in headers)
                     {
-                        var headerCell = new PdfPCell(new Phrase(header, headerFont));
-                        headerCell.BackgroundColor = headerBackground;
-                        headerCell.Border = Rectangle.BOTTOM_BORDER;
-                        headerCell.BorderColor = new BaseColor(255, 255, 255); // White color
-                        headerCell.BorderWidthBottom = 2;
-                        headerCell.PaddingTop = 6;
-                        headerCell.PaddingBottom = 6;
-                        headerCell.HorizontalAlignment = Element.ALIGN_CENTER;
-                        headerCell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        var headerCell = new PdfPCell(new Phrase(header, headerFont))
+                        {
+                            BackgroundColor = headerBackground,
+                            Border = Rectangle.BOTTOM_BORDER,
+                            BorderColor = BaseColor.WHITE,
+                            BorderWidthBottom = 2,
+                            PaddingTop = 6,
+                            PaddingBottom = 6,
+                            HorizontalAlignment = Element.ALIGN_CENTER,
+                            VerticalAlignment = Element.ALIGN_MIDDLE
+                        };
                         table.AddCell(headerCell);
                     }
 
-                    // Data rows dengan alternating colors
                     var rowCount = 0;
                     var lightGray = new BaseColor(245, 245, 245);
-                    var white = new BaseColor(255, 255, 255); // White color
+                    var white = BaseColor.WHITE;
+                    var dataFont = FontFactory.GetFont(FontFactory.HELVETICA, 8);
+                    var dataFontBold = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8);
 
                     foreach (var branch in branches)
                     {
-                        // Alternating row colors
                         var rowColor = (rowCount % 2 == 0) ? white : lightGray;
 
-                        // Data cells
-                        var dataFont = FontFactory.GetFont(FontFactory.HELVETICA, 8);
-                        var dataFontBold = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8);
-
-                        // Kantor Wilayah
-                        AddStyledCell(table, branch.KantorWilayah?.ToString() ?? "", dataFont, rowColor, Element.ALIGN_LEFT);
-
-                        // Kode Cabang Induk
-                        AddStyledCell(table, branch.KodeCabangInduk?.ToString() ?? "", dataFontBold, rowColor, Element.ALIGN_CENTER);
-
-                        // Code Outlet
-                        AddStyledCell(table, branch.CodeOutlet?.ToString() ?? "", dataFontBold, rowColor, Element.ALIGN_CENTER);
-
-                        // Nama Outlet
-                        AddStyledCell(table, branch.NamaOutlet?.ToString() ?? "", dataFont, rowColor, Element.ALIGN_LEFT);
-
-                        // Regional
-                        AddStyledCell(table, branch.Regional?.ToString() ?? "", dataFont, rowColor, Element.ALIGN_LEFT);
-
-                        // Kelas Outlet
-                        AddStyledCell(table, branch.KelasOutlet?.ToString() ?? "", dataFont, rowColor, Element.ALIGN_CENTER);
-
-                        // IP Low
-                        AddStyledCell(table, branch.IPLow?.ToString() ?? "", dataFont, rowColor, Element.ALIGN_CENTER);
-
-                        // IP High
-                        AddStyledCell(table, branch.IPHigh?.ToString() ?? "", dataFont, rowColor, Element.ALIGN_CENTER);
+                        AddStyledCell(table, branch.KantorWilayah ?? "", dataFont, rowColor, Element.ALIGN_LEFT);
+                        AddStyledCell(table, branch.KodeCabangInduk ?? "", dataFontBold, rowColor, Element.ALIGN_CENTER);
+                        AddStyledCell(table, branch.CodeOutlet ?? "", dataFontBold, rowColor, Element.ALIGN_CENTER);
+                        AddStyledCell(table, branch.NamaOutlet ?? "", dataFont, rowColor, Element.ALIGN_LEFT);
+                        AddStyledCell(table, branch.Regional ?? "", dataFont, rowColor, Element.ALIGN_LEFT);
+                        AddStyledCell(table, branch.KelasOutlet ?? "", dataFont, rowColor, Element.ALIGN_CENTER);
+                        AddStyledCell(table, branch.IPLow ?? "", dataFont, rowColor, Element.ALIGN_CENTER);
+                        AddStyledCell(table, branch.IPHigh ?? "", dataFont, rowColor, Element.ALIGN_CENTER);
 
                         rowCount++;
                     }
 
                     doc.Add(table);
 
-                    // Footer dengan informasi tambahan
-                    var footerTable = new PdfPTable(1);
-                    footerTable.WidthPercentage = 100;
-
+                    // Footer
+                    var footerTable = new PdfPTable(1) { WidthPercentage = 100 };
                     var footerText = new Paragraph();
-                    footerText.Add(new Chunk("Report generated by Branch Management System | ", FontFactory.GetFont(FontFactory.HELVETICA, 8, new BaseColor(128, 128, 128)))); // Gray color
-                    footerText.Add(new Chunk("Page ", FontFactory.GetFont(FontFactory.HELVETICA, 8, new BaseColor(128, 128, 128)))); // Gray color
-                    footerText.Add(new Chunk("1", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8, new BaseColor(128, 128, 128)))); // Gray color
-                    footerText.Add(new Chunk(" of 1", FontFactory.GetFont(FontFactory.HELVETICA, 8, new BaseColor(128, 128, 128)))); // Gray color
+                    footerText.Add(new Chunk("Report generated by Branch Management System | ",
+                        FontFactory.GetFont(FontFactory.HELVETICA, 8, new BaseColor(128, 128, 128))));
+                    footerText.Add(new Chunk("Page 1 of 1",
+                        FontFactory.GetFont(FontFactory.HELVETICA, 8, new BaseColor(128, 128, 128))));
 
-                    var footerCell = new PdfPCell(footerText);
-                    footerCell.Border = Rectangle.TOP_BORDER;
-                    footerCell.BorderColor = new BaseColor(200, 200, 200); // Light gray color
-                    footerCell.BorderWidthTop = 1;
-                    footerCell.PaddingTop = 10;
-                    footerCell.HorizontalAlignment = Element.ALIGN_CENTER;
+                    var footerCell = new PdfPCell(footerText)
+                    {
+                        Border = Rectangle.TOP_BORDER,
+                        BorderColor = new BaseColor(200, 200, 200),
+                        BorderWidthTop = 1,
+                        PaddingTop = 10,
+                        HorizontalAlignment = Element.ALIGN_CENTER
+                    };
                     footerTable.AddCell(footerCell);
 
                     doc.Add(footerTable);
@@ -658,17 +632,18 @@ namespace NewPinpadApi.Controllers
             }
         }
 
-        // Helper method untuk menambahkan cell dengan styling yang konsisten
         private void AddStyledCell(PdfPTable table, string content, Font font, BaseColor backgroundColor, int alignment)
         {
-            var cell = new PdfPCell(new Phrase(content, font));
-            cell.BackgroundColor = backgroundColor;
-            cell.Border = Rectangle.BOTTOM_BORDER | Rectangle.TOP_BORDER | Rectangle.LEFT_BORDER | Rectangle.RIGHT_BORDER;
-            cell.BorderColor = new BaseColor(200, 200, 200); // Light gray color
-            cell.PaddingTop = 4;
-            cell.PaddingBottom = 4;
-            cell.HorizontalAlignment = alignment;
-            cell.VerticalAlignment = Element.ALIGN_MIDDLE;
+            var cell = new PdfPCell(new Phrase(content, font))
+            {
+                BackgroundColor = backgroundColor,
+                Border = Rectangle.BOX,
+                BorderColor = new BaseColor(200, 200, 200),
+                PaddingTop = 4,
+                PaddingBottom = 4,
+                HorizontalAlignment = alignment,
+                VerticalAlignment = Element.ALIGN_MIDDLE
+            };
             table.AddCell(cell);
         }
 
