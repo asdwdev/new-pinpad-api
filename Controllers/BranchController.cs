@@ -253,6 +253,7 @@ namespace NewPinpadApi.Controllers
             });
         }
 
+        // DELETE: api/branches/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBranch(int id)
         {

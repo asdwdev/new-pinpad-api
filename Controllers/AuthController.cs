@@ -25,21 +25,10 @@ namespace NewPinpadApi.Controllers
             // cari user berdasarkan username
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
 
-            // kalau user gak ketemu → langsung unauthorized
-            if (user == null)
-            {
-                return Unauthorized(new { success = false, message = "Invalid username or password" });
-            }
-
-            // hash password yang dikirim lalu cocokkan
-            var hashedInputPassword = HashPassword(request.Password);
-            if (user.Password != hashedInputPassword)
-            {
-                return Unauthorized(new { success = false, message = "Invalid username or password" });
-            }
-
-            // validasi role (jangan kasih tahu kalau role salah)
-            if (!string.Equals(user.Role, "Admin Logistik", StringComparison.OrdinalIgnoreCase))
+            // validasi user, password, dan role
+            if (user == null
+                || HashPassword(request.Password) != user.Password
+                || string.IsNullOrWhiteSpace(user.Role))
             {
                 return Unauthorized(new { success = false, message = "Invalid username or password" });
             }
