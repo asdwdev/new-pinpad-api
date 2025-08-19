@@ -19,7 +19,7 @@ namespace NewPinpadApi.Controllers
             _context = context;
         }
 
-       [HttpPost("login")]
+        [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
             // cari user berdasarkan username

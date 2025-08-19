@@ -33,6 +33,7 @@ namespace NewPinpadApi.Controllers
                 .OrderBy(b => b.ID)
                 .Select(b => new
                 {
+                    b.ID,
                     AreaName = b.SysArea != null ? b.SysArea.Name : null,
                     b.Ctrlbr,
                     b.Code,
@@ -49,6 +50,57 @@ namespace NewPinpadApi.Controllers
             }
 
             return Ok(branches);
+        }
+
+        // GET: api/branches/{id}
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetBranchById(int id)
+        {
+            var branch = await _context.SysBranches
+                .Include(b => b.SysArea)
+                .Include(b => b.SysBranchType)
+                .Where(b => b.ID == id)
+                .Select(b => new
+                {
+                    b.ID,
+                    Area = b.SysArea != null ? b.SysArea.Code : null,
+                    b.Ctrlbr,
+                    b.Code,
+                    b.Name,
+                    BranchType = b.SysBranchType != null ? b.SysBranchType.Code : null,
+                    b.ppad_iplow,
+                    b.ppad_iphigh
+                })
+                .FirstOrDefaultAsync();
+
+            if (branch == null)
+                return NotFound(new { message = $"Branch dengan ID {id} tidak ditemukan." });
+
+            return Ok(branch);
+        }
+
+        // GET: api/areas
+        [HttpGet("areas")]
+        public async Task<IActionResult> GetAreas()
+        {
+            var areas = await _context.SysAreas
+                .Select(a => new { a.Code, a.Name })
+                .OrderBy(a => a.Name)
+                .ToListAsync();
+
+            return Ok(areas);
+        }
+
+        // GET: api/branch-types
+        [HttpGet("branch-types")]
+        public async Task<IActionResult> GetBranchTypes()
+        {
+            var types = await _context.SysBranchTypes
+                .Select(bt => new { bt.Code, bt.Name })
+                .OrderBy(bt => bt.Name)
+                .ToListAsync();
+
+            return Ok(types);
         }
 
         // POST: api/branches
@@ -127,6 +179,7 @@ namespace NewPinpadApi.Controllers
             });
         }
 
+        // PUT: api/branches/{id}
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateBranch(int id, [FromBody] BranchUpdateRequest request)
         {
@@ -286,7 +339,7 @@ namespace NewPinpadApi.Controllers
                     query = query.Where(b => b.CodeOutlet.ToLower().Contains(code.ToLower()));
                 }
 
-               if (!string.IsNullOrEmpty(area))
+                if (!string.IsNullOrEmpty(area))
                 {
                     query = query.Where(b => b.Regional.ToLower().Contains(area.ToLower()));
                 }
