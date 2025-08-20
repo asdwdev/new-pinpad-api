@@ -102,8 +102,6 @@ namespace NewPinpadApi.Controllers
             });
         }
 
-
-
         [HttpGet("inquiry")]
         public async Task<IActionResult> GetSimplePinpadList(
             [FromQuery] string? status,
@@ -405,65 +403,65 @@ namespace NewPinpadApi.Controllers
         [HttpGet("export")]
         public async Task<IActionResult> ExportPinpads(
             string format = "csv",
-            string? status = null,
-            string? branch = null,
-            string? serialNumber = null)
+            [FromQuery] string? status = null,
+            [FromQuery] string? loc = null,          // Regional
+            [FromQuery] string? cabangInduk = null, // Cabang Induk
+            [FromQuery] string? serialNumber = null,
+            [FromQuery] string? q = null             // Free text search
+        )
         {
             try
             {
                 // Simulasi proses export yang membutuhkan waktu
                 await Task.Delay(2000); // Tunggu 2 detik untuk simulasi
 
-                var query = from p in _context.Pinpads
-                            select new
-                            {
-                                PpadId = p.PpadId,
-                                PpadSn = p.PpadSn ?? "",
-                                PpadBranch = p.PpadBranch,
-                                PpadBranchLama = p.PpadBranchLama,
-                                PpadStatus = p.PpadStatus ?? "",
-                                PpadStatusRepair = p.PpadStatusRepair ?? "",
-                                PpadStatusLama = p.PpadStatusLama ?? "",
-                                PpadTid = p.PpadTid ?? "",
-                                PpadFlag = p.PpadFlag,
-                                PpadLastLogin = p.PpadLastLogin,
-                                PpadLastActivity = p.PpadLastActivity,
-                                PpadCreateBy = p.PpadCreateBy ?? "",
-                                PpadCreateDate = p.PpadCreateDate,
-                                PpadUpdateBy = p.PpadUpdateBy,
-                                PpadUpdateDate = p.PpadUpdateDate
-                            };
+                var query = _context.Pinpads
+                    .Include(p => p.Branch)
+                        .ThenInclude(b => b.SysArea)
+                    .AsQueryable();
 
-                // Debug: Log the initial query count
-                var initialCount = await query.CountAsync();
-
-                // Apply filters
-
+                // === Apply filters ===
                 if (!string.IsNullOrEmpty(status))
-                {
-                    query = query.Where(p => p.PpadStatus.ToLower() == status.ToLower());
-                }
+                    query = query.Where(p => p.PpadStatus == status);
 
-                if (!string.IsNullOrEmpty(branch))
-                {
-                    query = query.Where(p => p.PpadBranch == branch);
-                }
+                if (!string.IsNullOrEmpty(loc))
+                    query = query.Where(p => p.Branch != null && p.Branch.SysArea != null && p.Branch.SysArea.Name.Contains(loc));
+
+
+                if (!string.IsNullOrEmpty(cabangInduk))
+                    query = query.Where(p => p.Branch.Ctrlbr.Contains(cabangInduk));
 
                 if (!string.IsNullOrEmpty(serialNumber))
+                    query = query.Where(p => p.PpadSn.Contains(serialNumber));
+
+                if (!string.IsNullOrEmpty(q))
                 {
-                    query = query.Where(p => p.PpadSn.ToLower().Contains(serialNumber.ToLower()));
+                    query = query.Where(p =>
+                        p.PpadSn.Contains(q) ||
+                        p.PpadTid.Contains(q) ||
+                        p.Branch.Code.Contains(q) ||
+                        p.Branch.Name.Contains(q));
                 }
 
-                var pinpads = await query.ToListAsync();
-
-                // Debug: Log filter details
-                var debugInfo = new
-                {
-                    filtersApplied = new { status, branch, serialNumber },
-                    initialCount,
-                    finalCount = pinpads.Count,
-                    hasFilters = !string.IsNullOrEmpty(status) || !string.IsNullOrEmpty(branch) || !string.IsNullOrEmpty(serialNumber)
-                };
+                var pinpads = await query
+                    .OrderByDescending(p => p.PpadCreateDate)
+                    .Select(p => new
+                    {
+                        regional = p.Branch.SysArea.Name,
+                        cabangInduk = p.Branch.Ctrlbr,
+                        kodeOutlet = p.Branch.Code,
+                        location = p.Branch.Name,
+                        registerDate = p.PpadCreateDate,
+                        updateDate = p.PpadUpdateDate,
+                        serialNumber = p.PpadSn,
+                        tid = p.PpadTid,
+                        statusPinpad = p.PpadStatus,
+                        createBy = p.PpadCreateBy,
+                        ipLow = p.Branch.ppad_iplow,
+                        ipHigh = p.Branch.ppad_iphigh,
+                        lastActivity = p.PpadLastActivity
+                    })
+                    .ToListAsync();
 
                 if (!pinpads.Any())
                 {
@@ -471,10 +469,26 @@ namespace NewPinpadApi.Controllers
                     {
                         success = false,
                         message = "Tidak ada data pinpad yang ditemukan dengan filter yang diberikan.",
-                        debug = debugInfo
+                        filtersApplied = new { status, loc, cabangInduk, serialNumber, q }
                     });
                 }
 
+                // === Simpan Audit Export ===
+                var audit = new Audit
+                {
+                    TableName = "Pinpad",
+                    DateTimes = DateTime.Now,
+                    KeyValues = "Export",
+                    OldValues = "{}",
+                    NewValues = $"{{\"ExportFormat\":\"{format}\",\"Filters\":{{\"status\":\"{status}\",\"loc\":\"{loc}\",\"cabangInduk\":\"{cabangInduk}\",\"serialNumber\":\"{serialNumber}\",\"q\":\"{q}\"}},\"ResultCount\":{pinpads.Count}}}",
+                    Username = User?.Identity?.Name ?? "system",
+                    ActionType = "Export"
+                };
+
+                _context.Audits.Add(audit);
+                await _context.SaveChangesAsync();
+
+                // === Generate file sesuai format ===
                 switch (format.ToLower())
                 {
                     case "csv":
@@ -498,6 +512,7 @@ namespace NewPinpadApi.Controllers
                 return StatusCode(500, new { success = false, message = "Export gagal.", error = ex.Message });
             }
         }
+
 
         // GET: api/Pinpad/GetAvailableFilters - Show available filter values
         [HttpGet("GetAvailableFilters")]
@@ -1066,36 +1081,44 @@ namespace NewPinpadApi.Controllers
         private byte[] GeneratePinpadCsvFromAnonymous(IEnumerable<dynamic> pinpads)
         {
             var csv = new StringWriter();
-            var csvHeader = "Regional,Cabang Induk,Kode Outlet,Location,Register,Update Date,Serial Number,TID,Status Pinpad,Create By,IP Low,IP High,Last Activity\n";
+            var csvHeader = "Regional,Cabang Induk,Kode Outlet,Location,Register,Update Date,Serial Number,TID,Status Pinpad,Create By,IP Low,IP High,Last Activity";
             csv.WriteLine(csvHeader);
 
             foreach (var pinpad in pinpads)
             {
-                // Get branch and regional info using helper method
-                var branchInfo = GetBranchInfo(pinpad.PpadBranch);
-                var branch = branchInfo.Branch;
-                var parentBranch = branchInfo.ParentBranch;
+                var csvRow = string.Join(",",
+                    pinpad.regional ?? "",
+                    pinpad.cabangInduk ?? "",
+                    pinpad.kodeOutlet ?? "",
+                    pinpad.location ?? "",
+                    pinpad.registerDate?.ToString("dd-MM-yyyy HH:mm:ss") ?? "",
+                    pinpad.updateDate?.ToString("dd-MM-yyyy HH:mm:ss") ?? "",
+                    pinpad.serialNumber ?? "",
+                    pinpad.tid ?? "",
+                    pinpad.statusPinpad ?? "",
+                    pinpad.createBy ?? "",
+                    pinpad.ipLow ?? "",
+                    pinpad.ipHigh ?? "",
+                    pinpad.lastActivity?.ToString("dd-MM-yyyy HH:mm:ss") ?? ""
+                );
 
-                var csvRow = $"{branch?.SysArea?.Name ?? ""},{parentBranch?.Code ?? branch?.Code ?? ""},{branch?.Code ?? ""},{branch?.Name ?? ""},{pinpad.PpadCreateDate:dd-MM-yyyy HH:mm:ss},{pinpad.PpadUpdateDate?.ToString("dd-MM-yyyy HH:mm:ss") ?? ""},{pinpad.PpadSn ?? ""},{pinpad.PpadTid ?? ""},{pinpad.PpadStatus ?? ""},{pinpad.PpadCreateBy ?? ""},{branch?.ppad_iplow ?? ""},{branch?.ppad_iphigh ?? ""},{pinpad.PpadLastActivity?.ToString("dd-MM-yyyy HH:mm:ss") ?? ""}";
                 csv.WriteLine(csvRow);
             }
 
             return System.Text.Encoding.UTF8.GetBytes(csv.ToString());
         }
 
-
-
         private byte[] GeneratePinpadExcelFromAnonymous(IEnumerable<dynamic> pinpads)
         {
             using var wb = new XLWorkbook();
             var ws = wb.AddWorksheet("Pinpad Data");
 
-            // Header sesuai field yang kamu Select
+            // Header sesuai field dari endpoint export sekarang
             string[] headers = {
-        "PpadId","Serial Number","Branch","Branch Lama","Status","Status Repair",
-        "Status Lama","TID","Flag","Last Login","Last Activity",
-        "Create By","Create Date","Update By","Update Date"
-    };
+                "Regional", "Cabang Induk", "Kode Outlet", "Location",
+                "Register Date", "Update Date", "Serial Number", "TID",
+                "Status Pinpad", "Create By", "IP Low", "IP High", "Last Activity"
+            };
 
             for (int i = 0; i < headers.Length; i++)
                 ws.Cell(1, i + 1).Value = headers[i];
@@ -1105,48 +1128,38 @@ namespace NewPinpadApi.Controllers
             int r = 2;
             foreach (var p in pinpads)
             {
-                ws.Cell(r, 1).Value = p.PpadId;
-                ws.Cell(r, 2).Value = p.PpadSn ?? "";
-                ws.Cell(r, 3).Value = p.PpadBranch ?? "";
-                ws.Cell(r, 4).Value = p.PpadBranchLama ?? "";
-                ws.Cell(r, 5).Value = p.PpadStatus ?? "";
-                ws.Cell(r, 6).Value = p.PpadStatusRepair ?? "";
-                ws.Cell(r, 7).Value = p.PpadStatusLama ?? "";
-                ws.Cell(r, 8).Value = p.PpadTid ?? "";
-                ws.Cell(r, 9).Value = p.PpadFlag ?? "";
+                ws.Cell(r, 1).Value = p.regional ?? "";
+                ws.Cell(r, 2).Value = p.cabangInduk ?? "";
+                ws.Cell(r, 3).Value = p.kodeOutlet ?? "";
+                ws.Cell(r, 4).Value = p.location ?? "";
 
-                // tanggal: tulis sebagai DateTime agar Excel mengenali format tanggal
-                if (p.PpadLastLogin is DateTime ll)
+                if (p.registerDate is DateTime rd)
                 {
-                    ws.Cell(r, 10).Value = ll;
-                    ws.Cell(r, 10).Style.DateFormat.Format = "dd-MM-yyyy HH:mm:ss";
+                    ws.Cell(r, 5).Value = rd;
+                    ws.Cell(r, 5).Style.DateFormat.Format = "dd-MM-yyyy HH:mm:ss";
                 }
-                else ws.Cell(r, 10).Value = "";
+                else ws.Cell(r, 5).Value = "";
 
-                if (p.PpadLastActivity is DateTime la)
+                if (p.updateDate is DateTime ud)
                 {
-                    ws.Cell(r, 11).Value = la;
-                    ws.Cell(r, 11).Style.DateFormat.Format = "dd-MM-yyyy HH:mm:ss";
+                    ws.Cell(r, 6).Value = ud;
+                    ws.Cell(r, 6).Style.DateFormat.Format = "dd-MM-yyyy HH:mm:ss";
                 }
-                else ws.Cell(r, 11).Value = "";
+                else ws.Cell(r, 6).Value = "";
 
-                ws.Cell(r, 12).Value = p.PpadCreateBy ?? "";
+                ws.Cell(r, 7).Value = p.serialNumber ?? "";
+                ws.Cell(r, 8).Value = p.tid ?? "";
+                ws.Cell(r, 9).Value = p.statusPinpad ?? "";
+                ws.Cell(r, 10).Value = p.createBy ?? "";
+                ws.Cell(r, 11).Value = p.ipLow ?? "";
+                ws.Cell(r, 12).Value = p.ipHigh ?? "";
 
-                if (p.PpadCreateDate is DateTime cd)
+                if (p.lastActivity is DateTime la)
                 {
-                    ws.Cell(r, 13).Value = cd;
+                    ws.Cell(r, 13).Value = la;
                     ws.Cell(r, 13).Style.DateFormat.Format = "dd-MM-yyyy HH:mm:ss";
                 }
                 else ws.Cell(r, 13).Value = "";
-
-                ws.Cell(r, 14).Value = p.PpadUpdateBy ?? "";
-
-                if (p.PpadUpdateDate is DateTime ud)
-                {
-                    ws.Cell(r, 15).Value = ud;
-                    ws.Cell(r, 15).Style.DateFormat.Format = "dd-MM-yyyy HH:mm:ss";
-                }
-                else ws.Cell(r, 15).Value = "";
 
                 r++;
             }
@@ -1159,183 +1172,121 @@ namespace NewPinpadApi.Controllers
         }
 
 
-
         private byte[] GeneratePinpadPdfFromAnonymous(IEnumerable<dynamic> pinpads)
         {
             using (var memoryStream = new MemoryStream())
             {
-                using (var doc = new Document(PageSize.A4.Rotate(), 20, 20, 30, 30)) // Landscape dengan margin yang lebih baik
+                using (var doc = new Document(PageSize.A4.Rotate(), 20, 20, 30, 30))
                 {
                     PdfWriter.GetInstance(doc, memoryStream);
                     doc.Open();
 
-                    // Header dengan logo dan informasi perusahaan
-                    var headerTable = new PdfPTable(2);
-                    headerTable.WidthPercentage = 100;
+                    // Header
+                    var headerTable = new PdfPTable(2) { WidthPercentage = 100 };
                     headerTable.SetWidths(new float[] { 1f, 1f });
 
-                    // Logo/Company Info (kiri)
-                    var companyCell = new PdfPCell(new Phrase("PINPAD MANAGEMENT SYSTEM", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 18, new BaseColor(64, 64, 64)))); // Dark gray color
-                    companyCell.Border = Rectangle.NO_BORDER;
-                    companyCell.HorizontalAlignment = Element.ALIGN_LEFT;
-                    companyCell.VerticalAlignment = Element.ALIGN_MIDDLE;
-                    companyCell.PaddingBottom = 10;
+                    var companyCell = new PdfPCell(new Phrase(
+                        "PINPAD MANAGEMENT SYSTEM",
+                        FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 18, new BaseColor(64, 64, 64))
+                    ))
+                    { Border = Rectangle.NO_BORDER, HorizontalAlignment = Element.ALIGN_LEFT, PaddingBottom = 10 };
                     headerTable.AddCell(companyCell);
 
-                    // Export Info (kanan)
                     var exportInfo = new Paragraph();
                     exportInfo.Add(new Chunk("Generated: ", FontFactory.GetFont(FontFactory.HELVETICA, 10)));
                     exportInfo.Add(new Chunk(DateTime.Now.ToString("dd MMMM yyyy HH:mm:ss"), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)));
                     exportInfo.Add(new Chunk("\nTotal Records: ", FontFactory.GetFont(FontFactory.HELVETICA, 10)));
                     exportInfo.Add(new Chunk(pinpads.Count().ToString(), FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)));
 
-                    var exportCell = new PdfPCell(exportInfo);
-                    exportCell.Border = Rectangle.NO_BORDER;
-                    exportCell.HorizontalAlignment = Element.ALIGN_RIGHT;
-                    exportCell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                    var exportCell = new PdfPCell(exportInfo) { Border = Rectangle.NO_BORDER, HorizontalAlignment = Element.ALIGN_RIGHT };
                     headerTable.AddCell(exportCell);
 
                     doc.Add(headerTable);
-                    doc.Add(new Paragraph(" ")); // Spacing
+                    doc.Add(new Paragraph(" "));
 
-                    // Title dengan styling yang lebih menarik
-                    var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16, new BaseColor(255, 255, 255)); // White color
-                    var title = new Paragraph("PINPAD DATA EXPORT", titleFont);
-                    title.Alignment = Element.ALIGN_CENTER;
+                    // Title
+                    var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16, new BaseColor(255, 255, 255));
+                    var title = new Paragraph("PINPAD DATA EXPORT", titleFont) { Alignment = Element.ALIGN_CENTER };
 
-                    var titleCell = new PdfPCell(title);
-                    titleCell.BackgroundColor = new BaseColor(68, 114, 196); // Biru corporate
-                    titleCell.Border = Rectangle.NO_BORDER;
-                    titleCell.PaddingTop = 8;
-                    titleCell.PaddingBottom = 8;
-                    titleCell.HorizontalAlignment = Element.ALIGN_CENTER;
+                    var titleCell = new PdfPCell(title)
+                    {
+                        BackgroundColor = new BaseColor(68, 114, 196),
+                        Border = Rectangle.NO_BORDER,
+                        PaddingTop = 8,
+                        PaddingBottom = 8,
+                        HorizontalAlignment = Element.ALIGN_CENTER
+                    };
 
-                    var titleTable = new PdfPTable(1);
-                    titleTable.WidthPercentage = 100;
+                    var titleTable = new PdfPTable(1) { WidthPercentage = 100 };
                     titleTable.AddCell(titleCell);
                     doc.Add(titleTable);
-                    doc.Add(new Paragraph(" ")); // Spacing
+                    doc.Add(new Paragraph(" "));
 
-                    // Table dengan desain yang lebih baik
-                    var table = new PdfPTable(13);
-                    table.WidthPercentage = 100;
-                    table.SpacingBefore = 10;
-                    table.SpacingAfter = 10;
-
-                    // Set column widths untuk optimasi layout
+                    // Table
+                    var table = new PdfPTable(13) { WidthPercentage = 100, SpacingBefore = 10, SpacingAfter = 10 };
                     table.SetWidths(new float[] { 2f, 1.5f, 1.5f, 2.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f });
 
-                    // Header styling
-                    var headerFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, new BaseColor(255, 255, 255)); // White color
+                    var headerFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, new BaseColor(255, 255, 255));
                     var headerBackground = new BaseColor(68, 114, 196);
-
-                    // Headers dengan styling yang konsisten
                     var headers = new[] { "Regional", "Cabang Induk", "Kode Outlet", "Location", "Register", "Update Date", "Serial Number", "TID", "Status Pinpad", "Create By", "IP Low", "IP High", "Last Activity" };
 
-                    foreach (var header in headers)
+                    foreach (var h in headers)
                     {
-                        var headerCell = new PdfPCell(new Phrase(header, headerFont));
-                        headerCell.BackgroundColor = headerBackground;
-                        headerCell.Border = Rectangle.BOTTOM_BORDER;
-                        headerCell.BorderColor = new BaseColor(255, 255, 255); // White color
-                        headerCell.BorderWidthBottom = 2;
-                        headerCell.PaddingTop = 6;
-                        headerCell.PaddingBottom = 6;
-                        headerCell.HorizontalAlignment = Element.ALIGN_CENTER;
-                        headerCell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        var headerCell = new PdfPCell(new Phrase(h, headerFont))
+                        {
+                            BackgroundColor = headerBackground,
+                            Border = Rectangle.BOTTOM_BORDER,
+                            BorderColor = new BaseColor(255, 255, 255),
+                            BorderWidthBottom = 2,
+                            PaddingTop = 6,
+                            PaddingBottom = 6,
+                            HorizontalAlignment = Element.ALIGN_CENTER,
+                            VerticalAlignment = Element.ALIGN_MIDDLE
+                        };
                         table.AddCell(headerCell);
                     }
 
-                    // Data rows dengan alternating colors
+                    // Data rows
                     var rowCount = 0;
                     var lightGray = new BaseColor(245, 245, 245);
-                    var white = new BaseColor(255, 255, 255); // White color
+                    var white = new BaseColor(255, 255, 255);
+                    var dataFont = FontFactory.GetFont(FontFactory.HELVETICA, 8);
+                    var dataFontBold = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8);
 
-                    foreach (var pinpad in pinpads)
+                    foreach (var p in pinpads)
                     {
-                        // Get branch and regional info using helper method
-                        var branchInfo = GetBranchInfo(pinpad.PpadBranch);
-                        var branch = branchInfo.Branch;
-                        var parentBranch = branchInfo.ParentBranch;
-
-                        // Alternating row colors
                         var rowColor = (rowCount % 2 == 0) ? white : lightGray;
 
-                        // Data cells
-                        var dataFont = FontFactory.GetFont(FontFactory.HELVETICA, 8);
-                        var dataFontBold = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8);
+                        AddStyledCell(table, p.regional ?? "", dataFont, rowColor, Element.ALIGN_LEFT);
+                        AddStyledCell(table, p.cabangInduk ?? "", dataFontBold, rowColor, Element.ALIGN_CENTER);
+                        AddStyledCell(table, p.kodeOutlet ?? "", dataFontBold, rowColor, Element.ALIGN_CENTER);
+                        AddStyledCell(table, p.location ?? "", dataFont, rowColor, Element.ALIGN_CENTER);
+                        AddStyledCell(table, p.registerDate?.ToString("dd-MM-yyyy") ?? "-", dataFont, rowColor, Element.ALIGN_CENTER);
+                        AddStyledCell(table, p.updateDate?.ToString("dd-MM-yyyy") ?? "-", dataFont, rowColor, Element.ALIGN_CENTER);
+                        AddStyledCell(table, p.serialNumber ?? "", dataFontBold, rowColor, Element.ALIGN_CENTER);
+                        AddStyledCell(table, p.tid ?? "", dataFont, rowColor, Element.ALIGN_CENTER);
 
-                        // Regional
-                        AddStyledCell(table, branch?.SysArea?.Name ?? "", dataFont, rowColor, Element.ALIGN_LEFT);
-
-                        // Cabang Induk
-                        AddStyledCell(table, parentBranch?.Code ?? branch?.Code ?? "", dataFontBold, rowColor, Element.ALIGN_CENTER);
-
-                        // Kode Outlet
-                        AddStyledCell(table, branch?.Code ?? "", dataFontBold, rowColor, Element.ALIGN_CENTER);
-
-                        // Location
-                        AddStyledCell(table, branch?.Name ?? "", dataFont, rowColor, Element.ALIGN_CENTER);
-
-                        // Register Date
-                        AddStyledCell(table, pinpad.PpadCreateDate.ToString("dd-MM-yyyy"), dataFont, rowColor, Element.ALIGN_CENTER);
-
-                        // Update Date
-                        AddStyledCell(table, pinpad.PpadUpdateDate?.ToString("dd-MM-yyyy") ?? "-", dataFont, rowColor, Element.ALIGN_CENTER);
-
-                        // Serial Number
-                        AddStyledCell(table, pinpad.PpadSn ?? "", dataFontBold, rowColor, Element.ALIGN_CENTER);
-
-                        // TID
-                        AddStyledCell(table, pinpad.PpadTid ?? "", dataFont, rowColor, Element.ALIGN_CENTER);
-
-                        // Status dengan warna
-                        var statusCell = new PdfPCell(new Phrase(pinpad.PpadStatus ?? "", dataFont));
-                        statusCell.BackgroundColor = GetStatusColor(pinpad.PpadStatus);
-                        statusCell.Border = Rectangle.BOTTOM_BORDER | Rectangle.TOP_BORDER | Rectangle.LEFT_BORDER | Rectangle.RIGHT_BORDER;
-                        statusCell.BorderColor = new BaseColor(200, 200, 200); // Light gray color
-                        statusCell.PaddingTop = 4;
-                        statusCell.PaddingBottom = 4;
-                        statusCell.HorizontalAlignment = Element.ALIGN_CENTER;
-                        statusCell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                        var statusCell = new PdfPCell(new Phrase(p.statusPinpad ?? "", dataFont))
+                        {
+                            BackgroundColor = GetStatusColor(p.statusPinpad),
+                            Border = Rectangle.BOX,
+                            BorderColor = new BaseColor(200, 200, 200),
+                            PaddingTop = 4,
+                            PaddingBottom = 4,
+                            HorizontalAlignment = Element.ALIGN_CENTER,
+                            VerticalAlignment = Element.ALIGN_MIDDLE
+                        };
                         table.AddCell(statusCell);
 
-                        // Create By
-                        AddStyledCell(table, pinpad.PpadCreateBy ?? "", dataFont, rowColor, Element.ALIGN_CENTER);
-
-                        // IP Low
-                        AddStyledCell(table, branch?.ppad_iplow ?? "", dataFont, rowColor, Element.ALIGN_CENTER);
-
-                        // IP High
-                        AddStyledCell(table, branch?.ppad_iphigh ?? "", dataFont, rowColor, Element.ALIGN_CENTER);
-
-                        // Last Activity
-                        AddStyledCell(table, pinpad.PpadLastActivity?.ToString("dd-MM-yyyy") ?? "-", dataFont, rowColor, Element.ALIGN_CENTER);
+                        AddStyledCell(table, p.createBy ?? "", dataFont, rowColor, Element.ALIGN_CENTER);
+                        AddStyledCell(table, p.ipLow ?? "", dataFont, rowColor, Element.ALIGN_CENTER);
+                        AddStyledCell(table, p.ipHigh ?? "", dataFont, rowColor, Element.ALIGN_CENTER);
+                        AddStyledCell(table, p.lastActivity?.ToString("dd-MM-yyyy") ?? "-", dataFont, rowColor, Element.ALIGN_CENTER);
 
                         rowCount++;
                     }
 
                     doc.Add(table);
-
-                    // Footer dengan informasi tambahan
-                    var footerTable = new PdfPTable(1);
-                    footerTable.WidthPercentage = 100;
-
-                    var footerText = new Paragraph();
-                    footerText.Add(new Chunk("Report generated by Pinpad Management System | ", FontFactory.GetFont(FontFactory.HELVETICA, 8, new BaseColor(128, 128, 128)))); // Gray color
-                    footerText.Add(new Chunk("Page ", FontFactory.GetFont(FontFactory.HELVETICA, 8, new BaseColor(128, 128, 128)))); // Gray color
-                    footerText.Add(new Chunk("1", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8, new BaseColor(128, 128, 128)))); // Gray color
-                    footerText.Add(new Chunk(" of 1", FontFactory.GetFont(FontFactory.HELVETICA, 8, new BaseColor(128, 128, 128)))); // Gray color
-
-                    var footerCell = new PdfPCell(footerText);
-                    footerCell.Border = Rectangle.TOP_BORDER;
-                    footerCell.BorderColor = new BaseColor(200, 200, 200); // Light gray color
-                    footerCell.BorderWidthTop = 1;
-                    footerCell.PaddingTop = 10;
-                    footerCell.HorizontalAlignment = Element.ALIGN_CENTER;
-                    footerTable.AddCell(footerCell);
-
-                    doc.Add(footerTable);
                     doc.Close();
                 }
 

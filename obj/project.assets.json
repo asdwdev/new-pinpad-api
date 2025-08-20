@@ -9188,19 +9188,19 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Farhanfahrezyy\\.nuget\\packages\\": {}
+    "C:\\Users\\Arya\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Farhanfahrezyy\\Documents\\Projects\\new-pinpad-api\\NewPinpadApi.csproj",
+      "projectUniqueName": "C:\\Users\\Arya\\Desktop\\dotnet-projects\\NewPinpadApi\\NewPinpadApi.csproj",
       "projectName": "NewPinpadApi",
-      "projectPath": "C:\\Users\\Farhanfahrezyy\\Documents\\Projects\\new-pinpad-api\\NewPinpadApi.csproj",
-      "packagesPath": "C:\\Users\\Farhanfahrezyy\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Farhanfahrezyy\\Documents\\Projects\\new-pinpad-api\\obj\\",
+      "projectPath": "C:\\Users\\Arya\\Desktop\\dotnet-projects\\NewPinpadApi\\NewPinpadApi.csproj",
+      "packagesPath": "C:\\Users\\Arya\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\Arya\\Desktop\\dotnet-projects\\NewPinpadApi\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\Farhanfahrezyy\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "C:\\Users\\Arya\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net9.0"
