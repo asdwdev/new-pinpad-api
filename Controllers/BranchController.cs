@@ -9,6 +9,7 @@ using OfficeOpenXml.Style;
 using iTextSharp.text;
 using iTextSharp.text.pdf;
 using OfficeOpenXml;
+using ClosedXML.Excel;
 
 namespace NewPinpadApi.Controllers
 {
@@ -417,48 +418,68 @@ namespace NewPinpadApi.Controllers
         {
             try
             {
-                using (var package = new ExcelPackage())
+                using var wb = new XLWorkbook();
+                var ws = wb.AddWorksheet("Branches");
+
+                var headers = new[] {
+            "Kantor Wilayah","Kode Cabang Induk","Code Outlet","Nama Outlet",
+            "Regional","Kelas Outlet","IP Low","IP High",
+            "ID","CreateDate","CreateBy","UpdateDate","UpdateBy"
+        };
+
+                // header
+                for (int i = 0; i < headers.Length; i++)
+                    ws.Cell(1, i + 1).Value = headers[i];
+                ws.Range(1, 1, 1, headers.Length).Style.Font.Bold = true;
+
+                // rows
+                for (int r = 0; r < branches.Count; r++)
                 {
-                    var ws = package.Workbook.Worksheets.Add("Branches");
+                    var b = branches[r];
+                    int row = r + 2;
 
-                    var headers = new[] {
-                        "Kantor Wilayah","Kode Cabang Induk","Code Outlet","Nama Outlet",
-                        "Regional","Kelas Outlet","IP Low","IP High",
-                        "ID","CreateDate","CreateBy","UpdateDate","UpdateBy"
-                    };
+                    ws.Cell(row, 1).Value = b.KantorWilayah ?? "";
+                    ws.Cell(row, 2).Value = b.KodeCabangInduk ?? "";
+                    ws.Cell(row, 3).Value = b.CodeOutlet ?? "";
+                    ws.Cell(row, 4).Value = b.NamaOutlet ?? "";
+                    ws.Cell(row, 5).Value = b.Regional ?? "";
+                    ws.Cell(row, 6).Value = b.KelasOutlet ?? "";
+                    ws.Cell(row, 7).Value = b.IPLow ?? "";
+                    ws.Cell(row, 8).Value = b.IPHigh ?? "";
+                    ws.Cell(row, 9).Value = b.ID;
 
-                    for (int i = 0; i < headers.Length; i++)
-                        ws.Cells[1, i + 1].Value = headers[i];
-
-                    for (int r = 0; r < branches.Count; r++)
+                    if (b.CreateDate.HasValue)
                     {
-                        var b = branches[r];
-                        int row = r + 2;
-                        ws.Cells[row, 1].Value = b.KantorWilayah;
-                        ws.Cells[row, 2].Value = b.KodeCabangInduk;
-                        ws.Cells[row, 3].Value = b.CodeOutlet;
-                        ws.Cells[row, 4].Value = b.NamaOutlet;
-                        ws.Cells[row, 5].Value = b.Regional;
-                        ws.Cells[row, 6].Value = b.KelasOutlet;
-                        ws.Cells[row, 7].Value = b.IPLow;
-                        ws.Cells[row, 8].Value = b.IPHigh;
-                        ws.Cells[row, 9].Value = b.ID;
-                        ws.Cells[row, 10].Value = b.CreateDate;
-                        ws.Cells[row, 11].Value = b.CreateBy;
-                        ws.Cells[row, 12].Value = b.UpdateDate;
-                        ws.Cells[row, 13].Value = b.UpdateBy;
+                        ws.Cell(row, 10).Value = b.CreateDate.Value;
+                        ws.Cell(row, 10).Style.DateFormat.Format = "dd-MM-yyyy HH:mm:ss";
                     }
+                    else ws.Cell(row, 10).Value = "";
 
-                    ws.Cells.AutoFitColumns();
-                    return package.GetAsByteArray();
+                    ws.Cell(row, 11).Value = b.CreateBy ?? "";
+
+                    if (b.UpdateDate.HasValue)
+                    {
+                        ws.Cell(row, 12).Value = b.UpdateDate.Value;
+                        ws.Cell(row, 12).Style.DateFormat.Format = "dd-MM-yyyy HH:mm:ss";
+                    }
+                    else ws.Cell(row, 12).Value = "";
+
+                    ws.Cell(row, 13).Value = b.UpdateBy ?? "";
                 }
+
+                ws.Columns().AdjustToContents();
+
+                using var ms = new MemoryStream();
+                wb.SaveAs(ms);
+                return ms.ToArray();
             }
             catch
             {
-                // Jika EPPlus error (mis. lisensi), fallback ke CSV yang aman
+                // tetap pakai fallback CSV kamu
                 return GenerateBranchCsvFallback(branches);
             }
         }
+
 
         // Fallback CSV jika Excel gagal
         private byte[] GenerateBranchCsvFallback(IEnumerable<BranchExportDto> branches)
