@@ -7,6 +7,7 @@ using iTextSharp.text;
 using iTextSharp.text.pdf;
 using OfficeOpenXml;
 using ClosedXML.Excel;
+using NewPinpadApi.Attributes;
 
 namespace NewPinpadApi.Controllers
 {

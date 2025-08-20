@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NewPinpadApi.Attributes;
 using NewPinpadApi.Data;
 using NewPinpadApi.DTOs;
 using NewPinpadApi.Models;
@@ -8,6 +9,7 @@ namespace NewPinpadApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]s")]
+
     public class RegionalController : ControllerBase
     {
         private readonly AppDbContext _context;
