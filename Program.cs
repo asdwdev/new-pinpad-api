@@ -5,42 +5,6 @@ using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
-
-
-// try
-// {
-//     // EPPlus v5..v7
-//     ExcelPackage.License = new LicenseContext(eLicenseType.NonCommercial);
-// }
-// catch
-// {
-//     try
-//     {
-//         // Fallback for EPPlus v8+ where ExcelPackage.License may exist
-//         var epType = typeof(ExcelPackage);
-//         var licenseProp = epType.GetProperty("License", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-//         if (licenseProp != null)
-//         {
-//             var licenseType = licenseProp.PropertyType;
-//             // Try to find a static setter method on the license type (SetLicense / SetLicenseContext / Set)
-//             var setMethod = licenseType.GetMethod("SetLicense", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
-//                          ?? licenseType.GetMethod("SetLicenseContext", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
-//                          ?? licenseType.GetMethod("Set", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-
-//             var enumType = epType.Assembly.GetType("OfficeOpenXml.LicenseContext") ?? epType.Assembly.GetType("OfficeOpenXml.License");
-//             if (setMethod != null && enumType != null)
-//             {
-//                 var nonCommercial = Enum.Parse(enumType, "NonCommercial");
-//                 setMethod.Invoke(null, new object[] { nonCommercial });
-//             }
-//         }
-//     }
-//     catch
-//     {
-//         // jika semua cara gagal, biarkan EPPlus melempar error saat digunakan — fallback CSV akan menolong
-//     }
-// }
-
 // koneksi ke database
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -82,11 +46,10 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// aktifkan session sebelum MapControllers
-app.UseSession();
-
 app.UseCors("AllowApp"); // HARUS sebelum app.MapControllers()
 
+// aktifkan session sebelum MapControllers
+app.UseSession();
 
 // aktifkan routing ke controllers
 app.MapControllers();

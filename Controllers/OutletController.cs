@@ -55,7 +55,6 @@ namespace NewPinpadApi.Controllers
         }
 
         // POST: api/outlets
-        // POST: api/outlets
         [HttpPost]
         public async Task<IActionResult> CreateOutlet([FromBody] OutletCreateRequest request)
         {
@@ -161,7 +160,7 @@ namespace NewPinpadApi.Controllers
             // Cek apakah ada cabang di bawah outlet type ini
             if (outletType.Branches != null && outletType.Branches.Any())
             {
-                return BadRequest(new { message = "Gagal menghapus, masih ada cabang di bawah outlet type ini." });
+                return BadRequest(new { message = "Gagal menghapus, masih ada cabang di bawah outlet ini." });
             }
 
             // Simpan old values untuk audit sebelum dihapus

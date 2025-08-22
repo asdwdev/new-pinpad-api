@@ -10,11 +10,13 @@ using iTextSharp.text;
 using iTextSharp.text.pdf;
 using OfficeOpenXml;
 using ClosedXML.Excel;
+using NewPinpadApi.Attributes;
 
 namespace NewPinpadApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]es")]
+
     public class BranchController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -371,6 +373,21 @@ namespace NewPinpadApi.Controllers
                         debug = debugInfo
                     });
                 }
+
+                // === Simpan Audit Export ===
+                var audit = new Audit
+                {
+                    TableName = "SysBranches",
+                    DateTimes = DateTime.Now,
+                    KeyValues = "Export",
+                    OldValues = "{}",
+                    NewValues = $"{{\"ExportFormat\":\"{format}\",\"Filters\":{{\"type\":\"{type}\",\"code\":\"{code}\",\"area\":\"{area}\",\"name\":\"{name}\"}},\"ResultCount\":{branches.Count}}}",
+                    Username = User?.Identity?.Name ?? "system",
+                    ActionType = "Export"
+                };
+
+                _context.Audits.Add(audit);
+                await _context.SaveChangesAsync();
 
                 // Export sesuai format
                 return format.ToLower() switch

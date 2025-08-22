@@ -22,13 +22,13 @@ namespace NewPinpadApi.Data
         // Tabel untuk SysBranches
         public DbSet<SysBranch> SysBranches { get; set; }
 
-         // Tabel untuk Audit
+        // Tabel untuk Audit
         public DbSet<Audit> Audits { get; set; }
 
-         // Tabel untuk Dashboard
+        // Tabel untuk Dashboard
         public DbSet<Dashboard> Dashboards { get; set; }
 
-          // Tabel untuk SysResponseCode
+        // Tabel untuk SysResponseCode
         public DbSet<SysResponseCode> SysResponseCodes { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -61,9 +61,12 @@ namespace NewPinpadApi.Data
                 .HasForeignKey(p => p.PpadStatusRepair)
                 .HasPrincipalKey(r => r.RescodeCode);
 
+            // Penting: disable OUTPUT clause untuk table Pinpads karena ada trigger
+            modelBuilder.Entity<Pinpad>()
+                .ToTable(tb => tb.UseSqlOutputClause(false));
+
             base.OnModelCreating(modelBuilder);
         }
-
 
     }
 }

@@ -265,6 +265,149 @@ namespace NewPinpadApi.Controllers
             return Ok(p);
         }
 
+        // POST: api/pinpads
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] PinpadCreateRequest request)
+        {
+            if (request == null)
+                return BadRequest(new { message = "Data tidak boleh kosong." });
+
+            // Cek Serial Number unik
+            bool exists = await _context.Pinpads.AnyAsync(p => p.PpadSn == request.SerialNumber);
+            if (exists)
+                return Conflict(new { message = $"Serial Number '{request.SerialNumber}' sudah terdaftar." });
+
+            // Validasi Repair Status (jika ada)
+            if (!string.IsNullOrEmpty(request.RepairStatus))
+            {
+                bool repairExists = await _context.SysResponseCodes
+                    .AnyAsync(r => r.RescodeCode == request.RepairStatus);
+
+                if (!repairExists)
+                    return BadRequest(new { message = $"Repair Status '{request.RepairStatus}' tidak valid atau belum terdaftar." });
+            }
+
+            var newPinpad = new Pinpad
+            {
+                PpadSn = request.SerialNumber,
+                PpadBranch = request.BranchCode,
+                PpadStatus = request.Status,
+                PpadStatusRepair = request.RepairStatus,
+                PpadTid = request.TerminalId,
+                PpadFlag = request.Flag,
+                PpadCreateDate = DateTime.UtcNow,
+                PpadCreateBy = User?.Identity?.Name ?? "system",
+            };
+
+            _context.Pinpads.Add(newPinpad);
+            await _context.SaveChangesAsync();
+
+            // === Audit log ===
+            var audit = new Audit
+            {
+                TableName = "Pinpads",
+                DateTimes = DateTime.Now,
+                KeyValues = $"ID: {newPinpad.PpadId}",
+                OldValues = "{}",
+                NewValues = $"{{\"SerialNumber\":\"{newPinpad.PpadSn}\",\"BranchCode\":\"{newPinpad.PpadBranch}\",\"Status\":\"{newPinpad.PpadStatus}\",\"TerminalId\":\"{newPinpad.PpadTid}\"}}",
+                Username = User?.Identity?.Name ?? "system",
+                ActionType = "Created"
+            };
+
+            _context.Audits.Add(audit);
+            await _context.SaveChangesAsync();
+            // =================
+
+            return CreatedAtAction(nameof(GetById), new { id = newPinpad.PpadId }, newPinpad);
+        }
+
+        // PUT: api/pinpads/{id}
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdatePinpad(int id, [FromBody] PinpadUpdateRequest request)
+        {
+            if (request == null)
+                return BadRequest(new { message = "Data tidak boleh kosong." });
+
+            // Cari pinpad berdasarkan ID
+            var pinpad = await _context.Pinpads.FindAsync(id);
+            if (pinpad == null)
+                return NotFound(new { message = $"Pinpad dengan ID {id} tidak ditemukan." });
+
+            // Cek serial number unik (jangan bentrok dengan pinpad lain)
+            bool serialExists = await _context.Pinpads
+                .AnyAsync(p => p.PpadSn == request.SerialNumber && p.PpadId != id);
+            if (serialExists)
+                return Conflict(new { message = "Serial Number sudah terdaftar di pinpad lain." });
+
+            // Cek branch valid
+            var branchExists = await _context.SysBranches
+                .AnyAsync(b => b.Code == request.BranchCode);
+            if (!branchExists)
+                return BadRequest(new { message = $"Branch Code '{request.BranchCode}' tidak ditemukan." });
+
+            // Kalau ada RepairStatus → validasi ke SysResponseCodes
+            if (!string.IsNullOrEmpty(request.RepairStatus))
+            {
+                var repairExists = await _context.SysResponseCodes
+                    .AnyAsync(r => r.RescodeCode == request.RepairStatus);
+                if (!repairExists)
+                    return BadRequest(new { message = $"Repair Status '{request.RepairStatus}' tidak tersedia. Silakan pilih dari daftar yang ada." });
+            }
+
+            // Simpan nilai lama untuk audit
+            var oldValues = new
+            {
+                pinpad.PpadSn,
+                pinpad.PpadBranch,
+                pinpad.PpadStatus,
+                pinpad.PpadStatusRepair,
+                pinpad.PpadTid,
+                pinpad.PpadFlag,
+                pinpad.PpadCreateDate
+            };
+
+            // Update data
+            pinpad.PpadSn = request.SerialNumber;
+            pinpad.PpadBranch = request.BranchCode;
+            pinpad.PpadStatus = request.Status;
+            pinpad.PpadStatusRepair = request.RepairStatus;
+            pinpad.PpadTid = request.TerminalId;
+            pinpad.PpadFlag = request.Flag;
+            pinpad.PpadUpdateDate = DateTime.UtcNow;
+            pinpad.PpadUpdateBy = User?.Identity?.Name ?? "system";
+
+            await _context.SaveChangesAsync();
+
+            // === Audit log ===
+            var newValues = new
+            {
+                pinpad.PpadSn,
+                pinpad.PpadBranch,
+                pinpad.PpadStatus,
+                pinpad.PpadStatusRepair,
+                pinpad.PpadTid,
+                pinpad.PpadFlag,
+                pinpad.PpadCreateDate
+            };
+
+            var audit = new Audit
+            {
+                TableName = "Pinpads",
+                DateTimes = DateTime.Now,
+                KeyValues = $"ID: {pinpad.PpadId}",
+                OldValues = System.Text.Json.JsonSerializer.Serialize(oldValues),
+                NewValues = System.Text.Json.JsonSerializer.Serialize(newValues),
+                Username = User?.Identity?.Name ?? "system",
+                ActionType = "Updated"
+            };
+
+            _context.Audits.Add(audit);
+            await _context.SaveChangesAsync();
+            // =================
+
+            return Ok(new { message = "Data pinpad berhasil diperbarui.", data = pinpad });
+        }
+
         [HttpGet("status-repairs")]
         public async Task<IActionResult> GetStatusRepairs()
         {

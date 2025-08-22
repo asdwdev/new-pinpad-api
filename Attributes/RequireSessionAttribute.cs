@@ -3,17 +3,18 @@ using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace NewPinpadApi.Attributes
 {
-    public class RequireSessionAttribute : ActionFilterAttribute
+    public class RequireSessionAttribute : Attribute, IAuthorizationFilter
     {
-        public override void OnActionExecuting(ActionExecutingContext context)
+        public void OnAuthorization(AuthorizationFilterContext context)
         {
             var userId = context.HttpContext.Session.GetInt32("UserId");
+
             if (userId == null)
             {
                 context.Result = new UnauthorizedObjectResult(new
                 {
                     success = false,
-                    message = "Unauthorized: login required"
+                    message = "Unauthorized: Please login first"
                 });
             }
         }
