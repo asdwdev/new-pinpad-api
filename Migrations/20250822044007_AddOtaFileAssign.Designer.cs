@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NewPinpadApi.Data;
 
@@ -11,9 +12,11 @@ using NewPinpadApi.Data;
 namespace NewPinpadApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250822044007_AddOtaFileAssign")]
+    partial class AddOtaFileAssign
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -96,51 +99,6 @@ namespace NewPinpadApi.Migrations
                     b.ToTable("Dashboards");
                 });
 
-            modelBuilder.Entity("NewPinpadApi.Models.OtaFile", b =>
-                {
-                    b.Property<int>("OtaId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OtaId"));
-
-                    b.Property<string>("OtaAttachment")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("OtaCreateBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("OtaCreateDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("OtaDesc")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("OtaFilename")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("OtaKey")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("OtaStatus")
-                        .HasColumnType("int");
-
-                    b.Property<string>("OtaUpdateBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("OtaUpdateDate")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("OtaId");
-
-                    b.ToTable("OtaFiles");
-                });
-
             modelBuilder.Entity("NewPinpadApi.Models.OtaFileAssign", b =>
                 {
                     b.Property<int>("OtaassId")
@@ -160,9 +118,7 @@ namespace NewPinpadApi.Migrations
 
                     b.HasIndex("OtaassBranch");
 
-                    b.HasIndex("OtaassKey");
-
-                    b.ToTable("OtaFileAssigns");
+                    b.ToTable("OtaFileAssign");
                 });
 
             modelBuilder.Entity("NewPinpadApi.Models.Pinpad", b =>
@@ -454,16 +410,7 @@ namespace NewPinpadApi.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("NewPinpadApi.Models.OtaFile", "OtaFile")
-                        .WithMany("Assignments")
-                        .HasForeignKey("OtaassKey")
-                        .HasPrincipalKey("OtaKey")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("Branch");
-
-                    b.Navigation("OtaFile");
                 });
 
             modelBuilder.Entity("NewPinpadApi.Models.Pinpad", b =>
@@ -504,11 +451,6 @@ namespace NewPinpadApi.Migrations
                     b.Navigation("SysArea");
 
                     b.Navigation("SysBranchType");
-                });
-
-            modelBuilder.Entity("NewPinpadApi.Models.OtaFile", b =>
-                {
-                    b.Navigation("Assignments");
                 });
 
             modelBuilder.Entity("NewPinpadApi.Models.SysArea", b =>

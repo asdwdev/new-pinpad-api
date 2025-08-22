@@ -34,5 +34,8 @@ namespace NewPinpadApi.Models
 
         // Pinpad yang ada di cabang ini
         public ICollection<Pinpad> Pinpads { get; set; }
+
+        public ICollection<OtaFileAssign> OtaFileAssigns { get; set; }
+
     }
 }

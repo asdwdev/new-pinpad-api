@@ -31,30 +31,36 @@ namespace NewPinpadApi.Data
         // Tabel untuk SysResponseCode
         public DbSet<SysResponseCode> SysResponseCodes { get; set; }
 
+        // Tabel untuk OtaFile
+        public DbSet<OtaFile> OtaFiles { get; set; }
+
+        // Tabel untuk OtaFiles
+        public DbSet<OtaFileAssign> OtaFileAssigns { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // SysBranch → SysArea
+            // Relasi SysBranch → SysArea
             modelBuilder.Entity<SysBranch>()
                 .HasOne(b => b.SysArea)
                 .WithMany(a => a.Branches)
                 .HasForeignKey(b => b.Area)
                 .HasPrincipalKey(a => a.Code);
 
-            // SysBranch → SysBranchType
+            // Relasi SysBranch → SysBranchType
             modelBuilder.Entity<SysBranch>()
                 .HasOne(b => b.SysBranchType)
                 .WithMany(bt => bt.Branches)
                 .HasForeignKey(b => b.Type)
                 .HasPrincipalKey(bt => bt.Code);
 
-            // Pinpad → SysBranch
+            // Relasi Pinpad → SysBranch
             modelBuilder.Entity<Pinpad>()
                 .HasOne(p => p.Branch)
                 .WithMany(b => b.Pinpads)
                 .HasForeignKey(p => p.PpadBranch)
                 .HasPrincipalKey(b => b.Code);
 
-            // Pinpad → SysResponseCode (Status Repair)
+            // Relasi Pinpad → SysResponseCode
             modelBuilder.Entity<Pinpad>()
                 .HasOne(p => p.StatusRepairCode)
                 .WithMany(r => r.Pinpads)
@@ -64,6 +70,20 @@ namespace NewPinpadApi.Data
             // Penting: disable OUTPUT clause untuk table Pinpads karena ada trigger
             modelBuilder.Entity<Pinpad>()
                 .ToTable(tb => tb.UseSqlOutputClause(false));
+
+            // Relasi OtaFile → OtaFileAssign (One-to-Many via OtaKey)
+            modelBuilder.Entity<OtaFileAssign>()
+                .HasOne(a => a.OtaFile)
+                .WithMany(f => f.Assignments)
+                .HasForeignKey(a => a.OtaassKey)
+                .HasPrincipalKey(f => f.OtaKey);
+
+            // OtaFileAssign → SysBranch
+            modelBuilder.Entity<OtaFileAssign>()
+                .HasOne(o => o.Branch)
+                .WithMany(b => b.OtaFileAssigns)
+                .HasForeignKey(o => o.OtaassBranch)
+                .HasPrincipalKey(b => b.Code);
 
             base.OnModelCreating(modelBuilder);
         }

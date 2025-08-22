@@ -25,13 +25,13 @@ namespace NewPinpadApi.Controllers
 
         [HttpGet]
         public async Task<IActionResult> GetPinpadDetails(
-            [FromQuery] string? status,
-            [FromQuery] string? loc, // Regional
-            [FromQuery] string? cabangInduk,
-            [FromQuery] string? serialNumber, // Filter khusus serial number
-            [FromQuery] string? q,
-            [FromQuery] int page = 1,
-            [FromQuery] int size = 100)
+     [FromQuery] string? status,
+     [FromQuery] string? loc, // Regional
+     [FromQuery] string? cabangInduk,
+     [FromQuery] string? serialNumber, // Filter khusus serial number
+     [FromQuery] string? q,
+     [FromQuery] int page = 1,
+     [FromQuery] int size = 100)
         {
             status = string.IsNullOrWhiteSpace(status) ? null : status.Trim();
             loc = string.IsNullOrWhiteSpace(loc) ? null : loc.Trim();
@@ -44,23 +44,32 @@ namespace NewPinpadApi.Controllers
                     .ThenInclude(b => b.SysArea)
                 .AsQueryable();
 
-            // Filter status pinpad
+            // 🔹 Filter status pinpad
             if (!string.IsNullOrEmpty(status))
-                query = query.Where(p => p.PpadStatus == status);
+            {
+                if (status == "Maintenance")
+                {
+                    query = query.Where(p => !string.IsNullOrEmpty(p.PpadStatusRepair));
+                }
+                else
+                {
+                    query = query.Where(p => p.PpadStatus == status);
+                }
+            }
 
-            // Filter regional berdasarkan SysArea.Name
+            // 🔹 Filter regional berdasarkan SysArea.Name
             if (!string.IsNullOrEmpty(loc))
                 query = query.Where(p => p.Branch.SysArea.Name.Contains(loc));
 
-            // Filter cabang induk berdasarkan Branch.Ctrlbr
+            // 🔹 Filter cabang induk berdasarkan Branch.Ctrlbr
             if (!string.IsNullOrEmpty(cabangInduk))
                 query = query.Where(p => p.Branch.Ctrlbr.Contains(cabangInduk));
 
-            // Filter khusus serial number
+            // 🔹 Filter khusus serial number
             if (!string.IsNullOrEmpty(serialNumber))
                 query = query.Where(p => p.PpadSn.Contains(serialNumber));
 
-            // Pencarian bebas
+            // 🔹 Pencarian bebas
             if (!string.IsNullOrEmpty(q))
             {
                 query = query.Where(p =>
@@ -74,6 +83,7 @@ namespace NewPinpadApi.Controllers
 
             var result = await query
                 .OrderByDescending(p => p.PpadCreateDate) // DESC default
+                .Skip((page - 1) * size) // pagination
                 .Take(size)
                 .Select(p => new
                 {
@@ -86,6 +96,7 @@ namespace NewPinpadApi.Controllers
                     serialNumber = p.PpadSn,
                     tid = p.PpadTid,
                     statusPinpad = p.PpadStatus,
+                    statusRepair = p.PpadStatusRepair, // 🔹 tambahin ini biar kelihatan juga
                     createBy = p.PpadCreateBy,
                     ipLow = p.Branch.ppad_iplow,
                     ipHigh = p.Branch.ppad_iphigh,
@@ -102,6 +113,7 @@ namespace NewPinpadApi.Controllers
                 data = result
             });
         }
+
 
         [HttpGet("inquiry")]
         public async Task<IActionResult> GetSimplePinpadList(

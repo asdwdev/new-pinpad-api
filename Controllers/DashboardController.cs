@@ -24,8 +24,8 @@ namespace NewPinpadApi.Controllers
             var dashboard = new Dashboard
             {
                 Total = await _context.Pinpads.CountAsync(),
-                NotReady = await _context.Pinpads.CountAsync(p => p.PpadStatus == "Not Ready To Use"),
-                Ready = await _context.Pinpads.CountAsync(p => p.PpadStatus == "Ready To Use"),
+                NotReady = await _context.Pinpads.CountAsync(p => p.PpadStatus == "NotReady"),
+                Ready = await _context.Pinpads.CountAsync(p => p.PpadStatus == "Ready"),
                 Active = await _context.Pinpads.CountAsync(p => p.PpadStatus == "Active"),
                 Inactive = await _context.Pinpads.CountAsync(p => p.PpadStatus == "Inactive"),
                 Maintenance = await _context.Pinpads.CountAsync(p => !string.IsNullOrEmpty(p.PpadStatusRepair))
@@ -33,6 +33,7 @@ namespace NewPinpadApi.Controllers
 
             return Ok(dashboard);
         }
+
 
     }
 }
