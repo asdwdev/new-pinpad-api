@@ -22,8 +22,8 @@ namespace NewPinpadApi.Models
         public string OtaCreateBy { get; set; }         // ota_createby
         public DateTime OtaCreateDate { get; set; }     // ota_createdate
 
-        public string OtaUpdateBy { get; set; }         // ota_updateby
-        public DateTime OtaUpdateDate { get; set; }     // ota_updatedate
+        public string? OtaUpdateBy { get; set; }         // ota_updateby
+        public DateTime? OtaUpdateDate { get; set; }     // ota_updatedate
 
         // Relasi navigasi
         public ICollection<OtaFileAssign> Assignments { get; set; }

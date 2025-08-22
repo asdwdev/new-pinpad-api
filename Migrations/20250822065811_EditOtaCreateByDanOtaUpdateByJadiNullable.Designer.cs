@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NewPinpadApi.Data;
 
@@ -11,9 +12,11 @@ using NewPinpadApi.Data;
 namespace NewPinpadApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250822065811_EditOtaCreateByDanOtaUpdateByJadiNullable")]
+    partial class EditOtaCreateByDanOtaUpdateByJadiNullable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -109,7 +112,6 @@ namespace NewPinpadApi.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("OtaCreateBy")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("OtaCreateDate")
@@ -132,7 +134,7 @@ namespace NewPinpadApi.Migrations
                     b.Property<string>("OtaUpdateBy")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime?>("OtaUpdateDate")
+                    b.Property<DateTime>("OtaUpdateDate")
                         .HasColumnType("datetime2");
 
                     b.HasKey("OtaId");
