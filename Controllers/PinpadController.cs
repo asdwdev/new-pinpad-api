@@ -256,9 +256,17 @@ namespace NewPinpadApi.Controllers
                     IpHigh = x.Branch.ppad_iphigh,
                     RegisterDate = x.PpadCreateDate,
                     StatusPinpad = x.PpadStatus,
-                    StatusRepairCode = x.PpadStatusRepair, // ini kode SR101
-                    StatusRepairDesc = x.StatusRepairCode.RescodeDesc // ini deskripsi
+                    StatusRepairCode = x.PpadStatusRepair,
+                    StatusRepairDesc = x.StatusRepairCode.RescodeDesc,
+                    TerminalId = x.PpadTid,
+                    Flag = x.PpadFlag,
+                    CreatedDate = x.PpadCreateDate,
+
+                    BranchCode = x.PpadBranch,
+                    Status = x.PpadStatus,
+                    RepairStatus = x.PpadStatusRepair,
                 })
+
                 .FirstOrDefaultAsync();
 
             if (p == null) return NotFound();
@@ -408,6 +416,52 @@ namespace NewPinpadApi.Controllers
             return Ok(new { message = "Data pinpad berhasil diperbarui.", data = pinpad });
         }
 
+        // DELETE: api/pinpads/{id}
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeletePinpad(int id)
+        {
+            // Cari data pinpad
+            var pinpad = await _context.Pinpads.FindAsync(id);
+            if (pinpad == null)
+                return NotFound(new { message = $"Pinpad dengan ID {id} tidak ditemukan." });
+
+            // Simpan nilai lama untuk audit
+            var oldValues = new
+            {
+                pinpad.PpadSn,
+                pinpad.PpadBranch,
+                pinpad.PpadStatus,
+                pinpad.PpadStatusRepair,
+                pinpad.PpadTid,
+                pinpad.PpadFlag,
+                pinpad.PpadCreateDate
+            };
+
+            // Hapus data
+            _context.Pinpads.Remove(pinpad);
+            await _context.SaveChangesAsync();
+
+            // === Audit log ===
+            var audit = new Audit
+            {
+                TableName = "Pinpads",
+                DateTimes = DateTime.Now,
+                KeyValues = $"ID: {pinpad.PpadId}",
+                OldValues = System.Text.Json.JsonSerializer.Serialize(oldValues),
+                NewValues = "{}",
+                Username = User?.Identity?.Name ?? "system",
+                ActionType = "Deleted"
+            };
+
+            _context.Audits.Add(audit);
+            await _context.SaveChangesAsync();
+            // =================
+
+            return Ok(new { message = "Data pinpad berhasil dihapus." });
+        }
+
+
+        // GET: api/pinpad/status-repairs
         [HttpGet("status-repairs")]
         public async Task<IActionResult> GetStatusRepairs()
         {
@@ -423,7 +477,22 @@ namespace NewPinpadApi.Controllers
             return Ok(list);
         }
 
-        // GET: api/Pinpad/GetBranches
+        // GET: api/pinpad/branches
+        [HttpGet("branches")]
+        public async Task<IActionResult> GetBranches()
+        {
+            var list = await _context.SysBranches
+                .Select(b => new
+                {
+                    Code = b.Code,
+                    Name = b.Name
+                })
+                .ToListAsync();
+
+            return Ok(list);
+        }
+
+        // GET: api/pinpad/getbranches
         [HttpGet("GetBranches")]
         public async Task<IActionResult> GetBranches(string? status = null)
         {
