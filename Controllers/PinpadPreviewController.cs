@@ -173,21 +173,21 @@ namespace NewPinpadApi.Controllers
     [HttpGet("download-template")]
     public IActionResult DownloadTemplate()
     {
-        try
-        {
-            // Create Excel template using ExcelService
-            var excelBytes = _excelService.CreateExcelTemplate();
-            
-            var fileName = "Template_Multiple_Insert_Pinpad.xlsx";
-            var contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+      try
+      {
+        // Create Excel template using ExcelService
+        var excelBytes = _excelService.CreateExcelTemplate();
 
-            return File(excelBytes, contentType, fileName);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error generating template");
-            return Ok(new { ok = false, message = "Gagal generate template: " + ex.Message });
-        }
+        var fileName = "Template_Multiple_Insert_Pinpad.xlsx";
+        var contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+        return File(excelBytes, contentType, fileName);
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Error generating template");
+        return Ok(new { ok = false, message = "Gagal generate template: " + ex.Message });
+      }
     }
 
     [HttpGet("sample-format")]
@@ -222,9 +222,10 @@ namespace NewPinpadApi.Controllers
       try
       {
         _logger.LogInformation("Received data: {Data}", System.Text.Json.JsonSerializer.Serialize(data));
-        
-        return Ok(new { 
-          ok = true, 
+
+        return Ok(new
+        {
+          ok = true,
           message = "Data received and logged",
           receivedData = data
         });
@@ -354,17 +355,17 @@ namespace NewPinpadApi.Controllers
       catch (Exception ex)
       {
         _logger.LogError(ex, "Error saving to database");
-        
+
         // Get more detailed error information
         var innerException = ex.InnerException;
         var errorMessage = ex.Message;
-        
+
         if (innerException != null)
         {
           errorMessage += $" Inner Exception: {innerException.Message}";
           _logger.LogError(innerException, "Inner exception details");
         }
-        
+
         return Ok(new
         {
           ok = false,

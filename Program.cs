@@ -1,9 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using NewPinpadApi.Data;
+using NewPinpadApi.Services;
 using OfficeOpenXml;
 using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddScoped<IExcelService, ExcelService>();
 
 // koneksi ke database
 builder.Services.AddDbContext<AppDbContext>(options =>
