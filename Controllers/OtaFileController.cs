@@ -85,5 +85,117 @@ namespace NewPinpadApi.Controllers
             return CreatedAtAction(nameof(GetOtaFiles), new { id = otaFile.OtaId }, otaFile);
         }
 
+        // DELETE: api/otafiles/{id}
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteOtaFile(int id)
+        {
+            var otaFile = await _context.OtaFiles.FindAsync(id);
+            if (otaFile == null)
+                return NotFound(new { message = $"OtaFile dengan ID {id} tidak ditemukan." });
+
+            // Simpan old values buat audit
+            var oldValues = $"{{\"OtaDesc\":\"{otaFile.OtaDesc}\",\"OtaFilename\":\"{otaFile.OtaFilename}\",\"OtaStatus\":\"{otaFile.OtaStatus}\"}}";
+
+            _context.OtaFiles.Remove(otaFile);
+            await _context.SaveChangesAsync();
+
+            // === Audit log ===
+            var audit = new Audit
+            {
+                TableName = "OtaFiles",
+                DateTimes = DateTime.UtcNow,
+                KeyValues = $"ID: {otaFile.OtaId}",
+                OldValues = oldValues,
+                NewValues = "{}",
+                Username = User?.Identity?.Name ?? "system",
+                ActionType = "Deleted"
+            };
+
+            _context.Audits.Add(audit);
+            await _context.SaveChangesAsync();
+            // =================
+
+            return Ok(new { message = $"OtaFile dengan ID {id} berhasil dihapus." });
+        }
+
+        // GET: api/otafiles/{id}
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetOtaFileById(int id)
+        {
+            var ota = await _context.OtaFiles
+                .Where(o => o.OtaId == id)
+                .Select(o => new
+                {
+                    Id = o.OtaId,
+                    OtaDesc = o.OtaDesc,
+                    OtaFilename = o.OtaFilename,
+                    OtaAttachment = o.OtaAttachment,
+                    OtaStatus = o.OtaStatus,
+                    RegisterDate = o.OtaCreateDate
+                })
+                .FirstOrDefaultAsync();
+
+            if (ota == null)
+                return NotFound(new { message = $"OtaFile dengan ID {id} tidak ditemukan." });
+
+            return Ok(ota);
+        }
+
+
+        // PUT: api/otafiles/{id}
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateOtaFile(int id, [FromBody] OtaFileUpdateRequest request)
+        {
+            if (request == null)
+                return BadRequest(new { message = "Data tidak boleh kosong." });
+
+            var otaFile = await _context.OtaFiles.FindAsync(id);
+            if (otaFile == null)
+                return NotFound(new { message = $"OtaFile dengan ID {id} tidak ditemukan." });
+
+            // === Audit sebelum update (OldValues) ===
+            var oldValues = new
+            {
+                otaFile.OtaDesc,
+                otaFile.OtaFilename,
+                otaFile.OtaAttachment,
+                otaFile.OtaStatus
+            };
+
+            // === Update fields ===
+            otaFile.OtaDesc = request.OtaDesc;
+            otaFile.OtaAttachment = request.OtaAttachment;
+            otaFile.OtaFilename = request.OtaFilename;
+            otaFile.OtaStatus = request.OtaStatus;
+            otaFile.OtaUpdateBy = User?.Identity?.Name ?? "system";
+            otaFile.OtaUpdateDate = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            // === Audit log setelah update (NewValues) ===
+            var newValues = new
+            {
+                otaFile.OtaDesc,
+                otaFile.OtaFilename,
+                otaFile.OtaAttachment,
+                otaFile.OtaStatus
+            };
+
+            var audit = new Audit
+            {
+                TableName = "OtaFiles",
+                DateTimes = DateTime.UtcNow,
+                KeyValues = $"ID: {otaFile.OtaId}",
+                OldValues = System.Text.Json.JsonSerializer.Serialize(oldValues),
+                NewValues = System.Text.Json.JsonSerializer.Serialize(newValues),
+                Username = User?.Identity?.Name ?? "system",
+                ActionType = "Updated"
+            };
+
+            _context.Audits.Add(audit);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = $"OtaFile dengan ID {id} berhasil diperbarui." });
+        }
     }
 }

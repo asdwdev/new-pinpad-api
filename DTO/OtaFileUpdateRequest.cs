@@ -1,6 +1,6 @@
 namespace NewPinpadApi.DTOs
 {
-    public class OtaFileCreateRequest
+    public class OtaFileUpdateRequest
     {
         public string OtaDesc { get; set; }
         public string OtaAttachment { get; set; }
