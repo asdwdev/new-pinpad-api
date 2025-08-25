@@ -19,6 +19,51 @@ namespace NewPinpadApi.Controllers
             _context = context;
         }
 
+        // GET: api/audit
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Audit>>> GetAudits(
+            [FromQuery] string? username,
+            [FromQuery] string? actionType,
+            [FromQuery] string? keyValues,
+            [FromQuery] string? oldValues,
+            [FromQuery] string? newValues,
+            [FromQuery] DateTime? startDate,
+            [FromQuery] DateTime? endDate
+        )
+        {
+            var query = _context.Audits.AsQueryable();
+
+            if (!string.IsNullOrEmpty(username))
+                query = query.Where(a => a.Username.Contains(username));
+
+            if (!string.IsNullOrEmpty(actionType))
+                query = query.Where(a => a.ActionType == actionType);
+
+            if (!string.IsNullOrEmpty(keyValues))
+                query = query.Where(a => a.KeyValues.Contains(keyValues));
+
+            if (!string.IsNullOrEmpty(oldValues))
+                query = query.Where(a => a.OldValues.Contains(oldValues));
+
+            if (!string.IsNullOrEmpty(newValues))
+                query = query.Where(a => a.NewValues.Contains(newValues));
+
+            if (startDate.HasValue)
+                query = query.Where(a => a.DateTimes >= startDate.Value);
+
+            if (endDate.HasValue)
+                query = query.Where(a => a.DateTimes <= endDate.Value);
+
+            var logs = await query
+                .OrderByDescending(a => a.DateTimes)
+                .ToListAsync();
+
+            if (!logs.Any())
+                return Ok(new { message = "Data tidak ditemukan" });
+
+            return Ok(logs);
+        }
+
         // GET: api/audit/pinpads
         [HttpGet("pinpads")]
         public async Task<ActionResult<IEnumerable<Audit>>> GetPinpadAudits(
@@ -69,21 +114,25 @@ namespace NewPinpadApi.Controllers
 
         [HttpGet("export")]
         public async Task<IActionResult> ExportAudits(
-     string format = "xlsx",
-     [FromQuery] string? username = null,
-     [FromQuery] string? actionType = null,
-     [FromQuery] string? keyValues = null,
-     [FromQuery] string? oldValues = null,
-     [FromQuery] string? newValues = null,
-     [FromQuery] DateTime? startDate = null,
-     [FromQuery] DateTime? endDate = null
- )
+    string format = "xlsx",
+    [FromQuery] string? tableName = null,   // ✅ Tambahan
+    [FromQuery] string? username = null,
+    [FromQuery] string? actionType = null,
+    [FromQuery] string? keyValues = null,
+    [FromQuery] string? oldValues = null,
+    [FromQuery] string? newValues = null,
+    [FromQuery] DateTime? startDate = null,
+    [FromQuery] DateTime? endDate = null
+)
         {
             try
             {
                 var query = _context.Audits.AsQueryable();
 
                 // === Apply filters ===
+                if (!string.IsNullOrEmpty(tableName))
+                    query = query.Where(a => a.TableName == tableName);
+
                 if (!string.IsNullOrEmpty(username))
                     query = query.Where(a => a.Username.Contains(username));
 
@@ -105,7 +154,6 @@ namespace NewPinpadApi.Controllers
                 if (endDate.HasValue)
                     query = query.Where(a => a.DateTimes <= endDate.Value);
 
-                // ⬇️ LANGSUNG AMBIL List<Audit>, bukan anonymous type
                 var audits = await query
                     .OrderByDescending(a => a.DateTimes)
                     .ToListAsync();
@@ -116,18 +164,18 @@ namespace NewPinpadApi.Controllers
                     {
                         success = false,
                         message = "Tidak ada data audit log yang ditemukan dengan filter yang diberikan.",
-                        filtersApplied = new { username, actionType, keyValues, oldValues, newValues, startDate, endDate }
+                        filtersApplied = new { tableName, username, actionType, keyValues, oldValues, newValues, startDate, endDate }
                     });
                 }
 
-                // === Simpan Audit Export ===
+                // === Simpan log Export ke Audit ===
                 var audit = new Audit
                 {
                     TableName = "Audit",
                     DateTimes = DateTime.Now,
                     KeyValues = "Export",
                     OldValues = "{}",
-                    NewValues = $"{{\"ExportFormat\":\"{format}\",\"ResultCount\":{audits.Count}}}",
+                    NewValues = $"{{\"ExportFormat\":\"{format}\",\"ResultCount\":{audits.Count},\"TableName\":\"{tableName ?? "All"}\"}}",
                     Username = User?.Identity?.Name ?? "system",
                     ActionType = "Export"
                 };
@@ -140,26 +188,38 @@ namespace NewPinpadApi.Controllers
                 {
                     case "xlsx":
                         var excelFile = GenerateAuditExcel(audits);
-                        return File(excelFile, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "AuditExport.xlsx");
+                        return File(
+                            excelFile,
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            $"AuditExport_{tableName ?? "All"}.xlsx"
+                        );
 
                     case "csv":
                         var csvFile = GenerateAuditCsv(audits);
-                        return File(csvFile, "text/csv", "AuditExport.csv");
+                        return File(
+                            csvFile,
+                            "text/csv",
+                            $"AuditExport_{tableName ?? "All"}.csv"
+                        );
 
                     case "pdf":
                         var pdfFile = GenerateAuditPdf(audits);
-                        return File(pdfFile, "application/pdf", "AuditExport.pdf");
+                        return File(
+                            pdfFile,
+                            "application/pdf",
+                            $"AuditExport_{tableName ?? "All"}.pdf"
+                        );
 
                     default:
                         return BadRequest(new { success = false, message = "Format tidak didukung. Pilih 'xlsx', 'csv', atau 'pdf'." });
                 }
-
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { success = false, message = "Export gagal.", error = ex.Message });
             }
         }
+
 
         private byte[] GenerateAuditExcel(List<Audit> audits)
         {
