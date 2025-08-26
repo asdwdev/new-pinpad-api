@@ -4,7 +4,7 @@ namespace NewPinpadApi.Models
     {
         public int Id { get; set; }
 
-        public string Type { get; set; }
+        public int Type { get; set; }
 
         public string Username { get; set; }
 

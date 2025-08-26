@@ -95,7 +95,6 @@ namespace NewPinpadApi.Controllers
             return CreatedAtAction(nameof(GetSysResponseCode), new { id = entity.RescodeId }, entity);
         }
 
-
         // PUT: api/sysresponsecodes/{id}
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateSysResponseCode(int id, [FromBody] SysResponseCodeUpdateRequest request)
