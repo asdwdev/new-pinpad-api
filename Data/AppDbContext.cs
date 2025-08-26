@@ -40,6 +40,9 @@ namespace NewPinpadApi.Data
         // Tabel untuk Device_Translog
         public DbSet<DeviceTranslog> DeviceTranslogs { get; set; }
 
+        // Tabel untuk SysLevel
+        public DbSet<SysLevel> SysLevels { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Relasi SysBranch → SysArea
