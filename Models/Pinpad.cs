@@ -7,6 +7,7 @@ namespace NewPinpadApi.Models
     {
         [Key]
         public int PpadId { get; set; }                // ID unik pinpad
+        
         public string PpadSn { get; set; }             // Serial number
 
         // Foreign key ke SysBranch.Code
@@ -30,5 +31,8 @@ namespace NewPinpadApi.Models
         // Relasi navigasi
         public SysBranch Branch { get; set; }
         public SysResponseCode StatusRepairCode { get; set; }
+        
+        // Device transaction logs
+        public ICollection<DeviceTranslog> DeviceTranslogs { get; set; }
     }
 }
