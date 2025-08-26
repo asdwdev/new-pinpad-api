@@ -43,6 +43,8 @@ namespace NewPinpadApi.Data
         // Tabel untuk SysLevel
         public DbSet<SysLevel> SysLevels { get; set; }
 
+        public DbSet<SysMkey> SysMkeys { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Relasi SysBranch → SysArea
