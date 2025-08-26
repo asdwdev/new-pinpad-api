@@ -37,5 +37,8 @@ namespace NewPinpadApi.Models
 
         public ICollection<OtaFileAssign> OtaFileAssigns { get; set; }
 
+        // Device transaction logs
+        public ICollection<DeviceTranslog> DeviceTranslogs { get; set; }
+
     }
 }

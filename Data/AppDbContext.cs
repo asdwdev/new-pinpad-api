@@ -37,6 +37,9 @@ namespace NewPinpadApi.Data
         // Tabel untuk OtaFiles
         public DbSet<OtaFileAssign> OtaFileAssigns { get; set; }
 
+        // Tabel untuk Device_Translog
+        public DbSet<DeviceTranslog> DeviceTranslogs { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Relasi SysBranch → SysArea
@@ -84,6 +87,35 @@ namespace NewPinpadApi.Data
                 .WithMany(b => b.OtaFileAssigns)
                 .HasForeignKey(o => o.OtaassBranch)
                 .HasPrincipalKey(b => b.Code);
+
+            // Relasi DeviceTranslog → Pinpad
+            modelBuilder.Entity<DeviceTranslog>()
+                .HasOne(dt => dt.Pinpad)
+                .WithMany(p => p.DeviceTranslogs)
+                .HasForeignKey(dt => dt.TranslogSn)
+                .HasPrincipalKey(p => p.PpadSn)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Relasi DeviceTranslog → SysBranch
+            modelBuilder.Entity<DeviceTranslog>()
+                .HasOne(dt => dt.Branch)
+                .WithMany(b => b.DeviceTranslogs)
+                .HasForeignKey(dt => dt.TranslogBranch)
+                .HasPrincipalKey(b => b.Code)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Relasi DeviceTranslog → SysResponseCode
+            modelBuilder.Entity<DeviceTranslog>()
+                .HasOne(dt => dt.TransactionType)
+                .WithMany(r => r.DeviceTranslogs)
+                .HasForeignKey(dt => dt.TranslogTrxType)
+                .HasPrincipalKey(r => r.RescodeCode)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure decimal precision for TranslogAmount
+            modelBuilder.Entity<DeviceTranslog>()
+                .Property(dt => dt.TranslogAmount)
+                .HasColumnType("decimal(18,2)");
 
             base.OnModelCreating(modelBuilder);
         }

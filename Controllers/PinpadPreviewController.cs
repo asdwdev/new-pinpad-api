@@ -162,12 +162,15 @@ namespace NewPinpadApi.Controllers
       {
         _logger.LogError(ex, "Error processing Excel preview");
 
-        return Ok(new PinpadPreviewResponse
+        return StatusCode(500, new
         {
           ok = false,
-          message = "Gagal memproses file: " + ex.Message
+          message = ex.Message,
+          type = ex.GetType().FullName,
+          stack = ex.StackTrace
         });
       }
+
     }
 
     [HttpGet("download-template")]
