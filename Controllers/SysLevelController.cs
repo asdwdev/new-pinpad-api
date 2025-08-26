@@ -152,5 +152,23 @@ namespace NewPinpadApi.Controllers
 
             return Ok(new { message = $"System level with ID {id} deleted successfully." });
         }
+
+        // --- GET SYSLEVEL NAMES (FOR DROPDOWN) ---
+        [HttpGet("dropdown")]
+        public async Task<IActionResult> GetSysLevelDropdown()
+        {
+            var levels = await _context.SysLevels
+                .Select(l => new
+                {
+                    id = l.Id,
+                    name = l.Name
+                })
+                .ToListAsync();
+
+            if (levels == null || !levels.Any())
+                return NotFound(new { message = "No system levels found." });
+
+            return Ok(levels);
+        }
     }
 }
