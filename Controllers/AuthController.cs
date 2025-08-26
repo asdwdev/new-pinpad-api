@@ -19,25 +19,25 @@ namespace NewPinpadApi.Controllers
             _context = context;
         }
 
+        // --- LOGIN ---
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
             // cari user berdasarkan username
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
 
-            // validasi user, password, dan role
-            if (user == null
-                || HashPassword(request.Password) != user.Password
-                || string.IsNullOrWhiteSpace(user.Role))
+            // validasi: user tidak ada atau password salah
+            if (user == null || HashPassword(request.Password) != user.Password)
             {
                 return Unauthorized(new { success = false, message = "Invalid username or password" });
             }
 
-            // set data ke session
+            // simpan data user ke session
             HttpContext.Session.SetInt32("UserId", user.Id);
             HttpContext.Session.SetString("Username", user.Username);
-            HttpContext.Session.SetString("Role", user.Role);
+            HttpContext.Session.SetString("AccessLevel", user.AccessLevel.ToString());
 
+            // response kalau berhasil login
             return Ok(new
             {
                 success = true,
@@ -48,26 +48,27 @@ namespace NewPinpadApi.Controllers
                     user.Username,
                     user.FullName,
                     user.Email,
-                    user.Role
+                    user.AccessLevel
                 }
             });
         }
 
+        // --- HASH PASSWORD (SHA256) ---
         private string HashPassword(string password)
         {
             using (var sha256 = SHA256.Create())
             {
+                // ubah password ke bytes -> hash -> ubah ke hex string lowercase
                 var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
                 return BitConverter.ToString(bytes).Replace("-", "").ToLower();
             }
         }
 
-
-
+        // --- LOGOUT ---
         [HttpPost("logout")]
         public IActionResult Logout()
         {
-            // cek apakah user pernah Login (ada UserId di session)
+            // cek apakah user sedang login (ada UserId di session)
             var userId = HttpContext.Session.GetInt32("UserId");
             if (userId == null)
             {
@@ -78,9 +79,9 @@ namespace NewPinpadApi.Controllers
                 });
             }
 
-            HttpContext.Session.Clear(); // hapus semua data session
+            // hapus semua data di session
+            HttpContext.Session.Clear();
 
-            // kalau ada -> hapus semau data di session
             return Ok(new
             {
                 success = true,
@@ -88,32 +89,27 @@ namespace NewPinpadApi.Controllers
             });
         }
 
-        // [RequireSession]
-        // [HttpGet("profile")]
-        // public IActionResult GetProfile()
-        // {
-        //     // di sini pasti sudah login
-        //     var username = HttpContext.Session.GetString("Username");
-        //     return Ok(new { message = "Hello " + username });
-        // }
-
+        // --- GET CURRENT USER (ME) ---
         [HttpGet("me")]
         public IActionResult Me()
         {
+            // cek apakah user sudah login
             var userId = HttpContext.Session.GetInt32("UserId");
             if (userId == null)
             {
                 return Unauthorized(new { success = false, message = "Not logged in" });
             }
 
-            var username = HttpContext.Session.GetString("Username");
-            var role = HttpContext.Session.GetString("Role");
+            // ambil data dari session
+            var username = HttpContext.Session.GetString("Username") ?? "";
+            var accessLevel = HttpContext.Session.GetString("AccessLevel") ?? "";
 
+            // kirim info user saat ini
             return Ok(new
             {
                 success = true,
                 username,
-                role
+                accessLevel
             });
         }
     }
