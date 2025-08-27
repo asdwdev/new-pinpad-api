@@ -21,7 +21,10 @@ namespace NewPinpadApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetSysLevels()
         {
-            var levels = await _context.SysLevels.ToListAsync();
+            var levels = await _context.SysLevels
+                .Where(l => l.Name.ToLower() != "super admin") // skip Super Admin
+                .ToListAsync();
+
             if (levels == null || !levels.Any())
                 return NotFound(new { message = "No system levels found." });
 
