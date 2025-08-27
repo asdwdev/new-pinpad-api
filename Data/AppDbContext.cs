@@ -45,6 +45,10 @@ namespace NewPinpadApi.Data
 
         public DbSet<SysMkey> SysMkeys { get; set; }
 
+        public DbSet<SysMenu> SysMenus { get; set; }
+
+        public DbSet<LinkLevelMenu> LinkLevelMenus { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Relasi SysBranch → SysArea
@@ -128,6 +132,26 @@ namespace NewPinpadApi.Data
                 .WithMany(l => l.Users)
                 .HasForeignKey(u => u.AccessLevel)
                 .HasPrincipalKey(l => l.Id);
+
+            // Relasi SysLevel ↔ SysMenu (many-to-many via LinkLevelMenu)
+            modelBuilder.Entity<LinkLevelMenu>()
+                .HasOne(llm => llm.SysLevel)
+                .WithMany(l => l.LinkLevelMenus)
+                .HasForeignKey(llm => llm.LevelId)
+                .HasPrincipalKey(l => l.Id);
+
+            modelBuilder.Entity<LinkLevelMenu>()
+                .HasOne(llm => llm.SysMenu)
+                .WithMany(m => m.LinkLevelMenus)
+                .HasForeignKey(llm => llm.MenuId)
+                .HasPrincipalKey(m => m.Id);
+
+            // Relasi SysMenu ↔ SysMenu (Parent-Child)
+            modelBuilder.Entity<SysMenu>()
+                .HasOne(m => m.Parent)
+                .WithMany(m => m.Children)
+                .HasForeignKey(m => m.ParentId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             base.OnModelCreating(modelBuilder);
         }

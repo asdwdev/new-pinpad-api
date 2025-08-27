@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NewPinpadApi.Data;
 
@@ -11,9 +12,11 @@ using NewPinpadApi.Data;
 namespace NewPinpadApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250827064842_TambahSysMenuDanBuatRelasiDenganSysLevelLewatLinkLevelMenu")]
+    partial class TambahSysMenuDanBuatRelasiDenganSysLevelLewatLinkLevelMenu
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -175,7 +178,7 @@ namespace NewPinpadApi.Migrations
 
                     b.HasIndex("MenuId");
 
-                    b.ToTable("LinkLevelMenus");
+                    b.ToTable("linkLevelMenu");
                 });
 
             modelBuilder.Entity("NewPinpadApi.Models.OtaFile", b =>
@@ -490,17 +493,12 @@ namespace NewPinpadApi.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("ParentId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Urls")
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ParentId");
-
-                    b.ToTable("SysMenus");
+                    b.ToTable("SysMenu");
                 });
 
             modelBuilder.Entity("NewPinpadApi.Models.SysMkey", b =>
@@ -761,16 +759,6 @@ namespace NewPinpadApi.Migrations
                     b.Navigation("SysBranchType");
                 });
 
-            modelBuilder.Entity("NewPinpadApi.Models.SysMenu", b =>
-                {
-                    b.HasOne("NewPinpadApi.Models.SysMenu", "Parent")
-                        .WithMany("Children")
-                        .HasForeignKey("ParentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Parent");
-                });
-
             modelBuilder.Entity("NewPinpadApi.Models.User", b =>
                 {
                     b.HasOne("NewPinpadApi.Models.SysLevel", "SysLevel")
@@ -820,8 +808,6 @@ namespace NewPinpadApi.Migrations
 
             modelBuilder.Entity("NewPinpadApi.Models.SysMenu", b =>
                 {
-                    b.Navigation("Children");
-
                     b.Navigation("LinkLevelMenus");
                 });
 

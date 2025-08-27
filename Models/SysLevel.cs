@@ -18,5 +18,7 @@ namespace NewPinpadApi.Models
 
         // Relasi navigation property (One-to-Many)
         public ICollection<User> Users { get; set; }
+
+        public ICollection<LinkLevelMenu> LinkLevelMenus { get; set; }
     }
 }

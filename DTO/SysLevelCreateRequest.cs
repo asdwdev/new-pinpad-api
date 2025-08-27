@@ -4,5 +4,6 @@ namespace NewPinpadApi.DTOs
     {
         public string Name { get; set; }
         public string? Description { get; set; }
+        public List<int> MenuIds { get; set; } = new();
     }
 }
