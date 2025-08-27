@@ -16,7 +16,8 @@ namespace NewPinpadApi.Models
 
         public string Email { get; set; }
 
-        public string AccessLevel { get; set; }
+        // Ganti dari string ke int
+        public int AccessLevel { get; set; }
 
         public string? Branch { get; set; }
 
@@ -29,5 +30,8 @@ namespace NewPinpadApi.Models
         public DateTime? UpdatedAt { get; set; }
 
         public string? UpdatedBy { get; set; }
+
+        // Relasi navigation property
+        public SysLevel SysLevel { get; set; }
     }
 }

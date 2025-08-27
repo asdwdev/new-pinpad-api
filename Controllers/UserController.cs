@@ -60,6 +60,11 @@ namespace NewPinpadApi.Controllers
             if (existingEmail)
                 return Conflict(new { message = "Email already exists." });
 
+            var existingNIP = await _context.Users
+                .AnyAsync(u => u.Nip == request.Nip);
+            if (existingNIP)
+                return Conflict(new { message = "NIP already exists." });
+
             var now = DateTime.Now;
 
             var user = new User

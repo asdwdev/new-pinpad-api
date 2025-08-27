@@ -15,5 +15,8 @@ namespace NewPinpadApi.Models
         public DateTime? UpdatedAt { get; set; }
 
         public string? UpdatedBy { get; set; }
+
+        // Relasi navigation property (One-to-Many)
+        public ICollection<User> Users { get; set; }
     }
 }

@@ -122,6 +122,13 @@ namespace NewPinpadApi.Data
                 .Property(dt => dt.TranslogAmount)
                 .HasColumnType("decimal(18,2)");
 
+            // Relasi User → SysLevel
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.SysLevel)
+                .WithMany(l => l.Users)
+                .HasForeignKey(u => u.AccessLevel)
+                .HasPrincipalKey(l => l.Id);
+
             base.OnModelCreating(modelBuilder);
         }
 
