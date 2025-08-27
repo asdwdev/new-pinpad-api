@@ -45,6 +45,9 @@ namespace NewPinpadApi.Data
 
         public DbSet<SysMkey> SysMkeys { get; set; }
 
+        // Tabel untuk APIReqLog
+        public DbSet<APIReqLog> APIReqLogs { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Relasi SysBranch → SysArea

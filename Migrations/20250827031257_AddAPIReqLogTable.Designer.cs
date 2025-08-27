@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NewPinpadApi.Data;
 
@@ -11,9 +12,11 @@ using NewPinpadApi.Data;
 namespace NewPinpadApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250827031257_AddAPIReqLogTable")]
+    partial class AddAPIReqLogTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -595,8 +598,9 @@ namespace NewPinpadApi.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("AccessLevel")
-                        .HasColumnType("int");
+                    b.Property<string>("AccessLevel")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Branch")
                         .HasColumnType("nvarchar(max)");
@@ -641,8 +645,6 @@ namespace NewPinpadApi.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("AccessLevel");
 
                     b.ToTable("Users");
                 });
@@ -738,17 +740,6 @@ namespace NewPinpadApi.Migrations
                     b.Navigation("SysBranchType");
                 });
 
-            modelBuilder.Entity("NewPinpadApi.Models.User", b =>
-                {
-                    b.HasOne("NewPinpadApi.Models.SysLevel", "SysLevel")
-                        .WithMany("Users")
-                        .HasForeignKey("AccessLevel")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("SysLevel");
-                });
-
             modelBuilder.Entity("NewPinpadApi.Models.OtaFile", b =>
                 {
                     b.Navigation("Assignments");
@@ -776,11 +767,6 @@ namespace NewPinpadApi.Migrations
             modelBuilder.Entity("NewPinpadApi.Models.SysBranchType", b =>
                 {
                     b.Navigation("Branches");
-                });
-
-            modelBuilder.Entity("NewPinpadApi.Models.SysLevel", b =>
-                {
-                    b.Navigation("Users");
                 });
 
             modelBuilder.Entity("NewPinpadApi.Models.SysResponseCode", b =>

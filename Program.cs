@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using NewPinpadApi.Data;
 using NewPinpadApi.Services;
+using NewPinpadApi.Middleware;
 using OfficeOpenXml;
 using System.Reflection;
 
@@ -8,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddScoped<IExcelService, ExcelService>();
 
+builder.Services.AddScoped<IExportService, ExportService>();
 // koneksi ke database
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -53,6 +55,9 @@ app.UseCors("AllowApp"); // HARUS sebelum app.MapControllers()
 
 // aktifkan session sebelum MapControllers
 app.UseSession();
+
+// Aktifkan API logging middleware
+app.UseAPILogging();
 
 // aktifkan routing ke controllers
 app.MapControllers();
