@@ -48,6 +48,8 @@ namespace NewPinpadApi.Data
         public DbSet<SysMenu> SysMenus { get; set; }
 
         public DbSet<LinkLevelMenu> LinkLevelMenus { get; set; }
+        // Tabel untuk APIReqLog
+        public DbSet<APIReqLog> APIReqLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

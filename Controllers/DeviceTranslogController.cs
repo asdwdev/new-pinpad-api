@@ -25,79 +25,31 @@ namespace NewPinpadApi.Controllers
         // GET: api/DeviceTranslog
         [HttpGet]
         public async Task<IActionResult> GetDeviceTranslogs(
-            [FromQuery] DateTime? startDate,
-            [FromQuery] DateTime? endDate,
-            [FromQuery] string? regional,
-            [FromQuery] string? outlet,
-            [FromQuery] string? username,
-            [FromQuery] string? serialNumber,
-            [FromQuery] string? branch,
-            [FromQuery] string? trxType,
-            [FromQuery] string? cardNumber,
-            [FromQuery] string? accountNumber,
-            [FromQuery] string? q,
-            [FromQuery] int page = 1,
-            [FromQuery] int size = 100)
+    [FromQuery] DateTime? startDate,
+    [FromQuery] DateTime? endDate,
+    [FromQuery] string? regional,
+    [FromQuery] string? outlet,
+    [FromQuery] string? username,
+    [FromQuery] string? serialNumber,
+    [FromQuery] string? branch,
+    [FromQuery] string? trxType,
+    [FromQuery] string? cardNumber,
+    [FromQuery] string? accountNumber,
+    [FromQuery] string? q,
+    [FromQuery] int page = 1,
+    [FromQuery] int size = 100)
         {
             try
             {
                 var query = _context.DeviceTranslogs
                     .Include(dt => dt.Pinpad)
-                    .Include(dt => dt.Branch)
-                        .ThenInclude(b => b.SysArea)
+                    .Include(dt => dt.Branch).ThenInclude(b => b.SysArea)
                     .Include(dt => dt.TransactionType)
                     .AsQueryable();
 
-                // ✅ filter tanggal
-                if (startDate.HasValue)
-                    query = query.Where(dt => dt.TranslogCreatedate >= startDate.Value);
-
-                if (endDate.HasValue)
-                    query = query.Where(dt => dt.TranslogCreatedate <= endDate.Value);
-
-                // ✅ filter username (TranslogCreateby)
-                if (!string.IsNullOrEmpty(username))
-                    query = query.Where(dt => dt.TranslogCreateby != null && dt.TranslogCreateby.Contains(username));
-
-                // ✅ filter outlet (pakai TranslogBranch)
-                if (!string.IsNullOrEmpty(outlet))
-                    query = query.Where(dt => dt.TranslogBranch != null && dt.TranslogBranch.Contains(outlet));
-
-                // ✅ filter regional (pakai SysArea.Name)
-                if (!string.IsNullOrEmpty(regional))
-                    query = query.Where(dt => dt.Branch.SysArea != null &&
-                                              (dt.Branch.SysArea.Code.Contains(regional) ||
-                                               dt.Branch.SysArea.Name.Contains(regional)));
-
-                // filter existing
-                if (!string.IsNullOrEmpty(serialNumber))
-                    query = query.Where(dt => dt.TranslogSn.Contains(serialNumber));
-
-                if (!string.IsNullOrEmpty(branch))
-                    query = query.Where(dt => dt.TranslogBranch.Contains(branch));
-
-                if (!string.IsNullOrEmpty(trxType))
-                    query = query.Where(dt => dt.TranslogTrxType.Contains(trxType));
-
-                if (!string.IsNullOrEmpty(cardNumber))
-                    query = query.Where(dt => dt.TranslogCardnum != null && dt.TranslogCardnum.Contains(cardNumber));
-
-                if (!string.IsNullOrEmpty(accountNumber))
-                    query = query.Where(dt => dt.TranslogAcctnum != null && dt.TranslogAcctnum.Contains(accountNumber));
-
-                // free text search
-                if (!string.IsNullOrEmpty(q))
-                {
-                    query = query.Where(dt =>
-                        dt.TranslogSn.Contains(q) ||
-                        dt.TranslogBranch.Contains(q) ||
-                        dt.TranslogTrxType.Contains(q) ||
-                        (dt.TranslogCardnum != null && dt.TranslogCardnum.Contains(q)) ||
-                        (dt.TranslogAcctnum != null && dt.TranslogAcctnum.Contains(q)) ||
-                        (dt.TranslogRrn != null && dt.TranslogRrn.Contains(q)) ||
-                        (dt.TranslogCreateby != null && dt.TranslogCreateby.Contains(q)) ||
-                        (dt.Branch.SysArea != null && dt.Branch.SysArea.Name.Contains(q)));
-                }
+                // ✅ panggil ApplyFilters
+                query = ApplyFilters(query, startDate, endDate, regional, outlet, username,
+                                     serialNumber, branch, trxType, cardNumber, accountNumber, q);
 
                 var totalData = await query.CountAsync();
 
@@ -145,6 +97,7 @@ namespace NewPinpadApi.Controllers
                 return StatusCode(500, new { success = false, message = "Failed to retrieve device transaction logs", error = ex.Message });
             }
         }
+
 
 
         // GET: api/DeviceTranslog/{id}
@@ -405,52 +358,30 @@ namespace NewPinpadApi.Controllers
         // GET: api/DeviceTranslog/export
         [HttpGet("export")]
         public async Task<IActionResult> ExportDeviceTranslogs(
-            string format = "csv",
-            [FromQuery] string? serialNumber = null,
-            [FromQuery] string? branch = null,
-            [FromQuery] string? trxType = null,
-            [FromQuery] string? cardNumber = null,
-            [FromQuery] string? accountNumber = null,
-            [FromQuery] string? q = null)
+    string format = "csv",
+    [FromQuery] DateTime? startDate = null,
+    [FromQuery] DateTime? endDate = null,
+    [FromQuery] string? regional = null,
+    [FromQuery] string? outlet = null,
+    [FromQuery] string? username = null,
+    [FromQuery] string? serialNumber = null,
+    [FromQuery] string? branch = null,
+    [FromQuery] string? trxType = null,
+    [FromQuery] string? cardNumber = null,
+    [FromQuery] string? accountNumber = null,
+    [FromQuery] string? q = null)
         {
             try
             {
-                // Simulate export process
-                await Task.Delay(2000);
-
                 var query = _context.DeviceTranslogs
                     .Include(dt => dt.Pinpad)
-                    .Include(dt => dt.Branch)
-                        .ThenInclude(b => b.SysArea)
+                    .Include(dt => dt.Branch).ThenInclude(b => b.SysArea)
                     .Include(dt => dt.TransactionType)
                     .AsQueryable();
 
-                // Apply filters
-                if (!string.IsNullOrEmpty(serialNumber))
-                    query = query.Where(dt => dt.TranslogSn.Contains(serialNumber));
-
-                if (!string.IsNullOrEmpty(branch))
-                    query = query.Where(dt => dt.TranslogBranch.Contains(branch));
-
-                if (!string.IsNullOrEmpty(trxType))
-                    query = query.Where(dt => dt.TranslogTrxType.Contains(trxType));
-
-                if (!string.IsNullOrEmpty(cardNumber))
-                    query = query.Where(dt => dt.TranslogCardnum != null && dt.TranslogCardnum.Contains(cardNumber));
-
-                if (!string.IsNullOrEmpty(accountNumber))
-                    query = query.Where(dt => dt.TranslogAcctnum != null && dt.TranslogAcctnum.Contains(accountNumber));
-
-                if (!string.IsNullOrEmpty(q))
-                {
-                    query = query.Where(dt =>
-                        dt.TranslogSn.Contains(q) ||
-                        dt.TranslogBranch.Contains(q) ||
-                        dt.TranslogTrxType.Contains(q) ||
-                        (dt.TranslogCardnum != null && dt.TranslogCardnum.Contains(q)) ||
-                        (dt.TranslogAcctnum != null && dt.TranslogAcctnum.Contains(q)) ||
-                        (dt.TranslogRrn != null && dt.TranslogRrn.Contains(q)));
-                }
+                // ✅ apply filter
+                query = ApplyFilters(query, startDate, endDate, regional, outlet, username,
+                                     serialNumber, branch, trxType, cardNumber, accountNumber, q);
 
                 var translogs = await query
                     .OrderByDescending(dt => dt.TranslogCreatedate)
@@ -476,23 +407,36 @@ namespace NewPinpadApi.Controllers
                     .ToListAsync();
 
                 if (!translogs.Any())
-                {
-                    return NotFound(new
-                    {
-                        success = false,
-                        message = "No device transaction logs found with the given filters",
-                        filtersApplied = new { serialNumber, branch, trxType, cardNumber, accountNumber, q }
-                    });
-                }
+                    return NotFound(new { success = false, message = "No data found for export" });
 
-                // Create audit log
+                // ✅ Buat Audit Log Export
+                var filters = new
+                {
+                    startDate,
+                    endDate,
+                    regional,
+                    outlet,
+                    username,
+                    serialNumber,
+                    branch,
+                    trxType,
+                    cardNumber,
+                    accountNumber,
+                    q
+                };
+
                 var audit = new Audit
                 {
                     TableName = "DeviceTranslog",
                     DateTimes = DateTime.Now,
                     KeyValues = "Export",
                     OldValues = "{}",
-                    NewValues = $"{{\"ExportFormat\":\"{format}\",\"Filters\":{{\"serialNumber\":\"{serialNumber}\",\"branch\":\"{branch}\",\"trxType\":\"{trxType}\",\"cardNumber\":\"{cardNumber}\",\"accountNumber\":\"{accountNumber}\",\"q\":\"{q}\"}},\"ResultCount\":{translogs.Count}}}",
+                    NewValues = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        ExportFormat = format,
+                        Filters = filters,
+                        ResultCount = translogs.Count
+                    }),
                     Username = User?.Identity?.Name ?? "system",
                     ActionType = "Export"
                 };
@@ -500,30 +444,23 @@ namespace NewPinpadApi.Controllers
                 _context.Audits.Add(audit);
                 await _context.SaveChangesAsync();
 
-                // Generate file based on format
-                switch (format.ToLower())
+                // ✅ Generate file sesuai format
+                return format.ToLower() switch
                 {
-                    case "csv":
-                        var csvFile = GenerateDeviceTranslogCsv(translogs);
-                        return File(csvFile, "text/csv", "DeviceTranslogExport.csv");
-
-                    case "xlsx":
-                        var excelFile = GenerateDeviceTranslogExcel(translogs);
-                        return File(excelFile, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "DeviceTranslogExport.xlsx");
-
-                    case "pdf":
-                        var pdfFile = GenerateDeviceTranslogPdf(translogs);
-                        return File(pdfFile, "application/pdf", "DeviceTranslogExport.pdf");
-
-                    default:
-                        return BadRequest(new { success = false, message = "Unsupported format. Use 'csv', 'xlsx', or 'pdf'." });
-                }
+                    "csv" => File(GenerateDeviceTranslogCsv(translogs), "text/csv", "DeviceTranslogExport.csv"),
+                    "xlsx" => File(GenerateDeviceTranslogExcel(translogs), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "DeviceTranslogExport.xlsx"),
+                    "pdf" => File(GenerateDeviceTranslogPdf(translogs), "application/pdf", "DeviceTranslogExport.pdf"),
+                    _ => BadRequest(new { success = false, message = "Unsupported format" })
+                };
+                
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { success = false, message = "Export failed", error = ex.Message });
             }
         }
+
+
 
         // GET: api/DeviceTranslog/GetAvailableFilters
         [HttpGet("GetAvailableFilters")]
@@ -563,7 +500,7 @@ namespace NewPinpadApi.Controllers
                         availableSerialNumbers,
                         availableBranches,
                         availableTrxTypes,
-                        availableAreas, 
+                        availableAreas,
                         totalTranslogs = await _context.DeviceTranslogs.CountAsync()
                     }
                 };
@@ -791,5 +728,61 @@ namespace NewPinpadApi.Controllers
             cell.VerticalAlignment = Element.ALIGN_MIDDLE;
             table.AddCell(cell);
         }
+
+        private IQueryable<DeviceTranslog> ApplyFilters(
+    IQueryable<DeviceTranslog> query,
+    DateTime? startDate, DateTime? endDate,
+    string? regional, string? outlet, string? username,
+    string? serialNumber, string? branch, string? trxType,
+    string? cardNumber, string? accountNumber, string? q)
+        {
+            if (startDate.HasValue)
+                query = query.Where(dt => dt.TranslogCreatedate >= startDate.Value);
+
+            if (endDate.HasValue)
+                query = query.Where(dt => dt.TranslogCreatedate <= endDate.Value);
+
+            if (!string.IsNullOrEmpty(username))
+                query = query.Where(dt => dt.TranslogCreateby != null && dt.TranslogCreateby.Contains(username));
+
+            if (!string.IsNullOrEmpty(outlet))
+                query = query.Where(dt => dt.TranslogBranch != null && dt.TranslogBranch.Contains(outlet));
+
+            if (!string.IsNullOrEmpty(regional))
+                query = query.Where(dt => dt.Branch.SysArea != null &&
+                                          (dt.Branch.SysArea.Code.Contains(regional) ||
+                                           dt.Branch.SysArea.Name.Contains(regional)));
+
+            if (!string.IsNullOrEmpty(serialNumber))
+                query = query.Where(dt => dt.TranslogSn.Contains(serialNumber));
+
+            if (!string.IsNullOrEmpty(branch))
+                query = query.Where(dt => dt.TranslogBranch.Contains(branch));
+
+            if (!string.IsNullOrEmpty(trxType))
+                query = query.Where(dt => dt.TranslogTrxType.Contains(trxType));
+
+            if (!string.IsNullOrEmpty(cardNumber))
+                query = query.Where(dt => dt.TranslogCardnum != null && dt.TranslogCardnum.Contains(cardNumber));
+
+            if (!string.IsNullOrEmpty(accountNumber))
+                query = query.Where(dt => dt.TranslogAcctnum != null && dt.TranslogAcctnum.Contains(accountNumber));
+
+            if (!string.IsNullOrEmpty(q))
+            {
+                query = query.Where(dt =>
+                    dt.TranslogSn.Contains(q) ||
+                    dt.TranslogBranch.Contains(q) ||
+                    dt.TranslogTrxType.Contains(q) ||
+                    (dt.TranslogCardnum != null && dt.TranslogCardnum.Contains(q)) ||
+                    (dt.TranslogAcctnum != null && dt.TranslogAcctnum.Contains(q)) ||
+                    (dt.TranslogRrn != null && dt.TranslogRrn.Contains(q)) ||
+                    (dt.TranslogCreateby != null && dt.TranslogCreateby.Contains(q)) ||
+                    (dt.Branch.SysArea != null && dt.Branch.SysArea.Name.Contains(q)));
+            }
+
+            return query;
+        }
+
     }
 }

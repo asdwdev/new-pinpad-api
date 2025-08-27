@@ -234,21 +234,11 @@ namespace NewPinpadApi.Services
                 worksheet.Column("C").Width = 40; // REMARK
                 worksheet.Column("D").Width = 25; // KETERANGAN
 
-                // Add instructions
-                worksheet.Cell("A10").Value = "INSTRUKSI:";
-                worksheet.Cell("A10").Style.Font.Bold = true;
-                worksheet.Cell("A10").Style.Font.FontSize = 12;
+               
+                
 
-                worksheet.Cell("A11").Value = "1. SERIAL_NUMBER: Masukkan Serial Number Pinpad";
-                worksheet.Cell("A12").Value = "2. KODE_OUTLET: Masukkan kode outlet/cabang";
-                worksheet.Cell("A13").Value = "3. REMARK: Pilih dari dropdown atau ketik manual";
-                worksheet.Cell("A14").Value = "4. Data dengan status 'Data Sesuai' TIDAK akan masuk ke database";
-                worksheet.Cell("A15").Value = "5. Data dengan status lain AKAN masuk ke database dengan status 'NotReady'";
-
-                // Style instructions
-                var instructionRange = worksheet.Range("A11:A15");
-                instructionRange.Style.Font.FontSize = 10;
-                instructionRange.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
+                
+                
 
                 // Create memory stream
                 using var stream = new MemoryStream();

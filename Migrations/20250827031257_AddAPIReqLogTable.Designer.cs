@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NewPinpadApi.Data;
 
@@ -11,9 +12,11 @@ using NewPinpadApi.Data;
 namespace NewPinpadApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250827031257_AddAPIReqLogTable")]
+    partial class AddAPIReqLogTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -200,36 +203,6 @@ namespace NewPinpadApi.Migrations
                     b.HasIndex("TranslogTrxType");
 
                     b.ToTable("DeviceTranslogs");
-                });
-
-            modelBuilder.Entity("NewPinpadApi.Models.LinkLevelMenu", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("GrantedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("LevelId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("MenuId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("LevelId");
-
-                    b.HasIndex("MenuId");
-
-                    b.ToTable("LinkLevelMenus");
                 });
 
             modelBuilder.Entity("NewPinpadApi.Models.OtaFile", b =>
@@ -529,34 +502,6 @@ namespace NewPinpadApi.Migrations
                     b.ToTable("SysLevels");
                 });
 
-            modelBuilder.Entity("NewPinpadApi.Models.SysMenu", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Icon")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("ParentId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Urls")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ParentId");
-
-                    b.ToTable("SysMenus");
-                });
-
             modelBuilder.Entity("NewPinpadApi.Models.SysMkey", b =>
                 {
                     b.Property<int>("MkeyId")
@@ -653,8 +598,9 @@ namespace NewPinpadApi.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("AccessLevel")
-                        .HasColumnType("int");
+                    b.Property<string>("AccessLevel")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Branch")
                         .HasColumnType("nvarchar(max)");
@@ -700,8 +646,6 @@ namespace NewPinpadApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AccessLevel");
-
                     b.ToTable("Users");
                 });
 
@@ -733,25 +677,6 @@ namespace NewPinpadApi.Migrations
                     b.Navigation("Pinpad");
 
                     b.Navigation("TransactionType");
-                });
-
-            modelBuilder.Entity("NewPinpadApi.Models.LinkLevelMenu", b =>
-                {
-                    b.HasOne("NewPinpadApi.Models.SysLevel", "SysLevel")
-                        .WithMany("LinkLevelMenus")
-                        .HasForeignKey("LevelId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("NewPinpadApi.Models.SysMenu", "SysMenu")
-                        .WithMany("LinkLevelMenus")
-                        .HasForeignKey("MenuId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("SysLevel");
-
-                    b.Navigation("SysMenu");
                 });
 
             modelBuilder.Entity("NewPinpadApi.Models.OtaFileAssign", b =>
@@ -815,27 +740,6 @@ namespace NewPinpadApi.Migrations
                     b.Navigation("SysBranchType");
                 });
 
-            modelBuilder.Entity("NewPinpadApi.Models.SysMenu", b =>
-                {
-                    b.HasOne("NewPinpadApi.Models.SysMenu", "Parent")
-                        .WithMany("Children")
-                        .HasForeignKey("ParentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Parent");
-                });
-
-            modelBuilder.Entity("NewPinpadApi.Models.User", b =>
-                {
-                    b.HasOne("NewPinpadApi.Models.SysLevel", "SysLevel")
-                        .WithMany("Users")
-                        .HasForeignKey("AccessLevel")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("SysLevel");
-                });
-
             modelBuilder.Entity("NewPinpadApi.Models.OtaFile", b =>
                 {
                     b.Navigation("Assignments");
@@ -863,20 +767,6 @@ namespace NewPinpadApi.Migrations
             modelBuilder.Entity("NewPinpadApi.Models.SysBranchType", b =>
                 {
                     b.Navigation("Branches");
-                });
-
-            modelBuilder.Entity("NewPinpadApi.Models.SysLevel", b =>
-                {
-                    b.Navigation("LinkLevelMenus");
-
-                    b.Navigation("Users");
-                });
-
-            modelBuilder.Entity("NewPinpadApi.Models.SysMenu", b =>
-                {
-                    b.Navigation("Children");
-
-                    b.Navigation("LinkLevelMenus");
                 });
 
             modelBuilder.Entity("NewPinpadApi.Models.SysResponseCode", b =>
