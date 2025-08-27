@@ -32,7 +32,6 @@ namespace NewPinpadApi.Controllers
     {
       try
       {
-        // Validasi file
         if (file == null || file.Length == 0)
         {
           return Ok(new PinpadPreviewResponse
@@ -42,7 +41,6 @@ namespace NewPinpadApi.Controllers
           });
         }
 
-        // Validasi ekstensi file
         var extension = Path.GetExtension(file.FileName)?.ToLowerInvariant();
         if (extension != ".xlsx" && extension != ".xls")
         {
@@ -73,7 +71,6 @@ namespace NewPinpadApi.Controllers
             dataTable.Columns.Cast<DataColumn>().Select(c => c.ColumnName)
         );
 
-        // Validasi header wajib
         if (!headerMap.ContainsKey("SERIAL_NUMBER") || !headerMap.ContainsKey("KODE_OUTLET"))
         {
           return Ok(new PinpadPreviewResponse
@@ -83,14 +80,21 @@ namespace NewPinpadApi.Controllers
           });
         }
 
-        // Kumpulkan semua kode outlet untuk lookup batch
+        // 🔹 Kumpulkan semua outlet dari file
         var outletCodes = dataTable.AsEnumerable()
             .Select(row => _excelService.GetCellValue(row, headerMap, "KODE_OUTLET"))
             .Where(code => !string.IsNullOrWhiteSpace(code))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        // Lookup branch info dengan join ke SysArea
+        // 🔹 Kumpulkan semua SN dari file
+        var serialNumbers = dataTable.AsEnumerable()
+            .Select(row => _excelService.GetCellValue(row, headerMap, "SERIAL_NUMBER"))
+            .Where(sn => !string.IsNullOrWhiteSpace(sn))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        // 🔹 Ambil data outlet + area
         var branchLookup = await (from branch in _context.SysBranches
                                   join area in _context.SysAreas on branch.Area equals area.Code into areaGroup
                                   from area in areaGroup.DefaultIfEmpty()
@@ -109,42 +113,73 @@ namespace NewPinpadApi.Controllers
             StringComparer.OrdinalIgnoreCase
         );
 
-        // Process rows untuk preview
+        // 🔹 Ambil semua SN existing di DB
+        var existingSnList = await _context.Pinpads
+            .Where(p => serialNumbers.Contains(p.PpadSn))
+            .Select(p => p.PpadSn)
+            .ToListAsync();
+
+        var existingSnSet = new HashSet<string>(existingSnList, StringComparer.OrdinalIgnoreCase);
+
+        // 🔹 Proses preview row
         var previewRows = new List<PinpadPreviewRow>();
 
         foreach (DataRow row in dataTable.Rows)
         {
           var kodeOutlet = _excelService.GetCellValue(row, headerMap, "KODE_OUTLET");
           var serialNumber = _excelService.GetCellValue(row, headerMap, "SERIAL_NUMBER");
-          var remark = _excelService.GetCellValue(row, headerMap, "REMARK");
 
-          // Skip empty rows
           if (string.IsNullOrWhiteSpace(kodeOutlet) && string.IsNullOrWhiteSpace(serialNumber))
             continue;
 
           string regional = "-";
           string cabangInduk = "-";
+          string status = "Data tidak valid";
+          string remark = "Data TIDAK masuk ke DB";
 
-          // Lookup branch info
           if (!string.IsNullOrWhiteSpace(kodeOutlet) &&
               branchDict.TryGetValue(kodeOutlet, out var branchInfo))
           {
             regional = string.IsNullOrWhiteSpace(branchInfo.AreaName) ? "-" : branchInfo.AreaName;
             cabangInduk = string.IsNullOrWhiteSpace(branchInfo.Ctrlbr) ? "-" : branchInfo.Ctrlbr;
+
+            if (!string.IsNullOrWhiteSpace(serialNumber))
+            {
+              if (existingSnSet.Contains(serialNumber))
+              {
+                status = "SN sudah terdaftar";
+                remark = "Data TIDAK masuk ke DB";
+              }
+              else
+              {
+                status = "Data Valid";
+                remark = "Data akan masuk ke DB";
+              }
+            }
+          }
+          else
+          {
+            status = "Outlet tidak terdaftar";
+            remark = "Data TIDAK masuk ke DB";
           }
 
-          var previewRow = new PinpadPreviewRow
+          previewRows.Add(new PinpadPreviewRow
           {
             Regional = regional,
             CabangInduk = cabangInduk,
             CabangOutlet = kodeOutlet ?? "-",
             SerialNumber = serialNumber ?? "-",
-            Status = _excelService.MapRemarkToStatus(remark),
-            RemarkRaw = remark ?? ""
-          };
-
-          previewRows.Add(previewRow);
+            Status = status,
+            RemarkRaw = remark
+          });
         }
+
+        // 🔹 Audit log
+        await AddAudit("Pinpad", "Preview", "ExcelUpload", new
+        {
+          FileName = file.FileName,
+          TotalRows = previewRows.Count
+        });
 
         var response = new PinpadPreviewResponse
         {
@@ -161,7 +196,6 @@ namespace NewPinpadApi.Controllers
       catch (Exception ex)
       {
         _logger.LogError(ex, "Error processing Excel preview");
-
         return StatusCode(500, new
         {
           ok = false,
@@ -170,8 +204,9 @@ namespace NewPinpadApi.Controllers
           stack = ex.StackTrace
         });
       }
-
     }
+
+    
 
     [HttpGet("download-template")]
     public IActionResult DownloadTemplate()
@@ -286,6 +321,9 @@ namespace NewPinpadApi.Controllers
       dto.Regional = branch.Regional;
       dto.CabangInduk = branch.Ctrlbr;
 
+      await AddAudit("Pinpad", "Create", pinpad.PpadSn, newValues: pinpad);
+
+
       return Ok(new { ok = true, message = "Pinpad berhasil ditambahkan.", data = dto });
     }
 
@@ -329,6 +367,8 @@ namespace NewPinpadApi.Controllers
             errors.Add($"Row SN:{row.SerialNumber} → sudah ada di DB");
             continue;
           }
+
+
 
           var pinpad = new Pinpad
           {
@@ -377,6 +417,8 @@ namespace NewPinpadApi.Controllers
         });
       }
 
+      await AddAudit("Pinpad", "BulkInsert", "Multiple", new { Inserted = inserted, Skipped = skipped, Errors = errors });
+
       return Ok(new
       {
         ok = true,
@@ -386,6 +428,25 @@ namespace NewPinpadApi.Controllers
         details = errors
       });
     }
+
+
+    private async Task AddAudit(string tableName, string actionType, string keyValues, object? newValues = null, object? oldValues = null)
+    {
+      var audit = new Audit
+      {
+        TableName = tableName,
+        ActionType = actionType,
+        DateTimes = DateTime.Now,
+        Username = User?.Identity?.Name ?? "system",
+        KeyValues = keyValues,
+        OldValues = oldValues != null ? System.Text.Json.JsonSerializer.Serialize(oldValues) : "{}",
+        NewValues = newValues != null ? System.Text.Json.JsonSerializer.Serialize(newValues) : "{}"
+      };
+
+      _context.Audits.Add(audit);
+      await _context.SaveChangesAsync();
+    }
+
 
 
 

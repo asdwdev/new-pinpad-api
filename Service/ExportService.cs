@@ -178,50 +178,141 @@ namespace NewPinpadApi.Services
         public byte[] ExportToPdf(IEnumerable<APIReqLog> data)
         {
             using var memoryStream = new MemoryStream();
-            Document document = new Document(PageSize.A4.Rotate(), 10f, 10f, 10f, 10f);
-            PdfWriter writer = PdfWriter.GetInstance(document, memoryStream);
-
-            document.Open();
-
-            // Title
-            var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
-            var title = new Paragraph("API Request Logs", titleFont);
-            title.Alignment = Element.ALIGN_CENTER;
-            document.Add(title);
-            document.Add(new Paragraph(" ")); // Spacing
-
-            // Create table
-            PdfPTable table = new PdfPTable(8);
-            table.WidthPercentage = 100;
-
-            // Header
-            var headerFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10);
-            var cellFont = FontFactory.GetFont(FontFactory.HELVETICA, 9);
-
-            table.AddCell(new PdfPCell(new Phrase("ID", headerFont)));
-            table.AddCell(new PdfPCell(new Phrase("Proses", headerFont)));
-            table.AddCell(new PdfPCell(new Phrase("StatusCode", headerFont)));
-            table.AddCell(new PdfPCell(new Phrase("Remark", headerFont)));
-            table.AddCell(new PdfPCell(new Phrase("ReqBy", headerFont)));
-            table.AddCell(new PdfPCell(new Phrase("ReqDate", headerFont)));
-            table.AddCell(new PdfPCell(new Phrase("Method", headerFont)));
-            table.AddCell(new PdfPCell(new Phrase("ResponseTime", headerFont)));
-
-            // Data
-            foreach (var item in data)
+            using (var doc = new Document(PageSize.A4.Rotate(), 20, 20, 30, 30)) // Landscape
             {
-                table.AddCell(new PdfPCell(new Phrase(item.Id.ToString(), cellFont)));
-                table.AddCell(new PdfPCell(new Phrase(item.Proses, cellFont)));
-                table.AddCell(new PdfPCell(new Phrase(item.StatusCode ?? "", cellFont)));
-                table.AddCell(new PdfPCell(new Phrase(item.Remark ?? "", cellFont)));
-                table.AddCell(new PdfPCell(new Phrase(item.ReqBy ?? "", cellFont)));
-                table.AddCell(new PdfPCell(new Phrase(item.ReqDate.ToString("yyyy-MM-dd HH:mm:ss"), cellFont)));
-                table.AddCell(new PdfPCell(new Phrase(item.Method ?? "", cellFont)));
-                table.AddCell(new PdfPCell(new Phrase(item.ResponseTime?.ToString() ?? "", cellFont)));
-            }
+                PdfWriter.GetInstance(doc, memoryStream);
+                doc.Open();
 
-            document.Add(table);
-            document.Close();
+                // Header (Company Info)
+                var headerTable = new PdfPTable(2);
+                headerTable.WidthPercentage = 100;
+                headerTable.SetWidths(new float[] { 1f, 1f });
+
+                var companyCell = new PdfPCell(new Phrase("API REQUEST LOG SYSTEM",
+                    FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 18, new BaseColor(64, 64, 64))));
+                companyCell.Border = Rectangle.NO_BORDER;
+                companyCell.HorizontalAlignment = Element.ALIGN_LEFT;
+                companyCell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                companyCell.PaddingBottom = 10;
+                headerTable.AddCell(companyCell);
+
+                var exportInfo = new Paragraph();
+                exportInfo.Add(new Chunk("Generated: ", FontFactory.GetFont(FontFactory.HELVETICA, 10)));
+                exportInfo.Add(new Chunk(DateTime.Now.ToString("dd MMMM yyyy HH:mm:ss"),
+                    FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)));
+                exportInfo.Add(new Chunk("\nTotal Records: ", FontFactory.GetFont(FontFactory.HELVETICA, 10)));
+                exportInfo.Add(new Chunk(data.Count().ToString(),
+                    FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)));
+
+                var exportCell = new PdfPCell(exportInfo);
+                exportCell.Border = Rectangle.NO_BORDER;
+                exportCell.HorizontalAlignment = Element.ALIGN_RIGHT;
+                exportCell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                headerTable.AddCell(exportCell);
+
+                doc.Add(headerTable);
+                doc.Add(new Paragraph(" "));
+
+                // Title
+                var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16, BaseColor.WHITE);
+                var title = new Paragraph("API REQUEST LOGS EXPORT", titleFont)
+                {
+                    Alignment = Element.ALIGN_CENTER
+                };
+
+                var titleCell = new PdfPCell(title);
+                titleCell.BackgroundColor = new BaseColor(68, 114, 196);
+                titleCell.Border = Rectangle.NO_BORDER;
+                titleCell.PaddingTop = 8;
+                titleCell.PaddingBottom = 8;
+                titleCell.HorizontalAlignment = Element.ALIGN_CENTER;
+
+                var titleTable = new PdfPTable(1) { WidthPercentage = 100 };
+                titleTable.AddCell(titleCell);
+                doc.Add(titleTable);
+                doc.Add(new Paragraph(" "));
+
+                // Table setup
+                var table = new PdfPTable(8) { WidthPercentage = 100, SpacingBefore = 10, SpacingAfter = 10 };
+                table.SetWidths(new float[] { 1f, 2f, 1.5f, 2f, 2f, 2f, 1.5f, 1.5f });
+
+                var headerFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, BaseColor.WHITE);
+                var headerBackground = new BaseColor(68, 114, 196);
+
+                string[] headers = { "ID", "Process", "Status Code", "Remark", "Req By", "Req Date", "Method", "Resp. Time" };
+                foreach (var h in headers)
+                {
+                    var headerCell = new PdfPCell(new Phrase(h, headerFont));
+                    headerCell.BackgroundColor = headerBackground;
+                    headerCell.Border = Rectangle.BOTTOM_BORDER;
+                    headerCell.BorderColor = BaseColor.WHITE;
+                    headerCell.BorderWidthBottom = 2;
+                    headerCell.PaddingTop = 6;
+                    headerCell.PaddingBottom = 6;
+                    headerCell.HorizontalAlignment = Element.ALIGN_CENTER;
+                    headerCell.VerticalAlignment = Element.ALIGN_MIDDLE;
+                    table.AddCell(headerCell);
+                }
+
+                // Data rows
+                int rowCount = 0;
+                var lightGray = new BaseColor(245, 245, 245);
+                var white = BaseColor.WHITE;
+                var cellFont = FontFactory.GetFont(FontFactory.HELVETICA, 8);
+
+                foreach (var item in data)
+                {
+                    var rowColor = (rowCount % 2 == 0) ? white : lightGray;
+
+                    AddStyledCell(table, item.Id.ToString(), cellFont, rowColor, Element.ALIGN_CENTER);
+                    AddStyledCell(table, item.Proses ?? "-", cellFont, rowColor, Element.ALIGN_LEFT);
+
+                    // Status Code special color
+                    BaseColor statusColor = GetStatusCodeColor(item.StatusCode);
+                    var statusCell = new PdfPCell(new Phrase(item.StatusCode ?? "-", cellFont))
+                    {
+                        BackgroundColor = statusColor,
+                        Border = Rectangle.BOX,
+                        BorderColor = new BaseColor(200, 200, 200),
+                        PaddingTop = 4,
+                        PaddingBottom = 4,
+                        HorizontalAlignment = Element.ALIGN_CENTER,
+                        VerticalAlignment = Element.ALIGN_MIDDLE
+                    };
+                    table.AddCell(statusCell);
+
+                    AddStyledCell(table, item.Remark ?? "-", cellFont, rowColor, Element.ALIGN_LEFT);
+                    AddStyledCell(table, item.ReqBy ?? "-", cellFont, rowColor, Element.ALIGN_CENTER);
+                    AddStyledCell(table, item.ReqDate.ToString("dd-MM-yyyy HH:mm:ss"), cellFont, rowColor, Element.ALIGN_CENTER);
+                    AddStyledCell(table, item.Method ?? "-", cellFont, rowColor, Element.ALIGN_CENTER);
+                    AddStyledCell(table, item.ResponseTime?.ToString() ?? "-", cellFont, rowColor, Element.ALIGN_CENTER);
+
+                    rowCount++;
+                }
+
+                doc.Add(table);
+
+                // Footer
+                var footerTable = new PdfPTable(1) { WidthPercentage = 100 };
+                var footerText = new Paragraph();
+                footerText.Add(new Chunk("Report generated by API Request Log System | ",
+                    FontFactory.GetFont(FontFactory.HELVETICA, 8, new BaseColor(128, 128, 128))));
+                footerText.Add(new Chunk($"Total Records: {data.Count()}",
+                    FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8, new BaseColor(128, 128, 128))));
+
+                var footerCell = new PdfPCell(footerText)
+                {
+                    Border = Rectangle.TOP_BORDER,
+                    BorderColor = new BaseColor(200, 200, 200),
+                    BorderWidthTop = 1,
+                    PaddingTop = 10,
+                    HorizontalAlignment = Element.ALIGN_CENTER
+                };
+                footerTable.AddCell(footerCell);
+                doc.Add(footerTable);
+
+                doc.Close();
+            }
 
             return memoryStream.ToArray();
         }
@@ -379,7 +470,7 @@ namespace NewPinpadApi.Services
                 foreach (var status in statusDistribution)
                 {
                     var percentage = totalRecords > 0 ? (double)status.Count / totalRecords * 100 : 0;
-                    
+
                     statusTable.AddCell(new PdfPCell(new Phrase(status.Status, cellFont)) { Border = Rectangle.BOTTOM_BORDER, BorderColor = BaseColor.LIGHT_GRAY });
                     statusTable.AddCell(new PdfPCell(new Phrase(status.Count.ToString("N0"), cellFont)) { Border = Rectangle.BOTTOM_BORDER, BorderColor = BaseColor.LIGHT_GRAY, HorizontalAlignment = Element.ALIGN_CENTER });
                     statusTable.AddCell(new PdfPCell(new Phrase($"{percentage:F1}%", cellFont)) { Border = Rectangle.BOTTOM_BORDER, BorderColor = BaseColor.LIGHT_GRAY, HorizontalAlignment = Element.ALIGN_CENTER });
@@ -446,12 +537,12 @@ namespace NewPinpadApi.Services
 
                 // Add cells
                 table.AddCell(new PdfPCell(new Phrase(item.Proses, cellFont)) { Border = Rectangle.BOTTOM_BORDER, BorderColor = BaseColor.LIGHT_GRAY });
-                
+
                 var statusCell = new PdfPCell(new Phrase(item.StatusCode ?? "-", new Font(baseFont, 10, Font.BOLD, statusColor))) { Border = Rectangle.BOTTOM_BORDER, BorderColor = BaseColor.LIGHT_GRAY, HorizontalAlignment = Element.ALIGN_CENTER };
                 table.AddCell(statusCell);
 
                 table.AddCell(new PdfPCell(new Phrase(item.ReqBy ?? "-", cellFont)) { Border = Rectangle.BOTTOM_BORDER, BorderColor = BaseColor.LIGHT_GRAY });
-                
+
                 var dateCell = new PdfPCell(new Phrase(item.ReqDate.ToString("dd/MM/yyyy\nHH:mm:ss"), cellFont)) { Border = Rectangle.BOTTOM_BORDER, BorderColor = BaseColor.LIGHT_GRAY, HorizontalAlignment = Element.ALIGN_CENTER };
                 table.AddCell(dateCell);
 
@@ -536,13 +627,40 @@ namespace NewPinpadApi.Services
 
             // Replace double quotes with two double quotes and wrap in quotes if contains comma, quote, or newline
             field = field.Replace("\"", "\"\"");
-            
+
             if (field.Contains(",") || field.Contains("\"") || field.Contains("\n") || field.Contains("\r"))
             {
                 field = $"\"{field}\"";
             }
 
             return field;
+        }
+
+
+        private void AddStyledCell(PdfPTable table, string text, Font font, BaseColor backgroundColor, int alignment)
+        {
+            var cell = new PdfPCell(new Phrase(text, font))
+            {
+                BackgroundColor = backgroundColor,
+                Border = Rectangle.BOX,
+                BorderColor = new BaseColor(200, 200, 200),
+                BorderWidth = 0.5f,
+                PaddingTop = 4,
+                PaddingBottom = 4,
+                HorizontalAlignment = alignment,
+                VerticalAlignment = Element.ALIGN_MIDDLE
+            };
+            table.AddCell(cell);
+        }
+
+        // Helper for status code color
+        private BaseColor GetStatusCodeColor(string code)
+        {
+            if (string.IsNullOrEmpty(code)) return new BaseColor(200, 200, 200);
+            if (code == "200") return new BaseColor(198, 239, 206);       // green
+            if (code.StartsWith("4")) return new BaseColor(255, 235, 156); // yellow
+            if (code.StartsWith("5")) return new BaseColor(255, 199, 206); // red
+            return new BaseColor(189, 215, 238); // blue for others
         }
     }
 }

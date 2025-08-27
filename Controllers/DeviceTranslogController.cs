@@ -452,6 +452,7 @@ namespace NewPinpadApi.Controllers
                     "pdf" => File(GenerateDeviceTranslogPdf(translogs), "application/pdf", "DeviceTranslogExport.pdf"),
                     _ => BadRequest(new { success = false, message = "Unsupported format" })
                 };
+                
             }
             catch (Exception ex)
             {
