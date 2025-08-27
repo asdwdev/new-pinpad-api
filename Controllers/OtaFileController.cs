@@ -36,7 +36,8 @@ namespace NewPinpadApi.Controllers
 
         // POST: api/otafiles
         [HttpPost]
-        public async Task<IActionResult> CreateOtaFile([FromBody] OtaFileCreateRequest request)
+        [RequestSizeLimit(5_000_000)] // max 5 MB
+        public async Task<IActionResult> CreateOtaFile([FromForm] OtaFileCreateRequest request)
         {
             if (request == null)
                 return BadRequest(new { message = "Data tidak boleh kosong." });
@@ -44,18 +45,35 @@ namespace NewPinpadApi.Controllers
             if (string.IsNullOrEmpty(request.OtaDesc) || string.IsNullOrEmpty(request.OtaFilename))
                 return BadRequest(new { message = "OtaDesc dan OtaFilename wajib diisi." });
 
-            if (string.IsNullOrEmpty(request.OtaAttachment))
-                return BadRequest(new { message = "Attachment wajib diisi." });
+            if (request.OtaAttachment == null || request.OtaAttachment.Length == 0)
+                return BadRequest(new { message = "Attachment wajib diupload." });
 
             // 🔎 Cek nama file unik
             bool exists = await _context.OtaFiles.AnyAsync(o => o.OtaFilename == request.OtaFilename);
             if (exists)
                 return Conflict(new { message = $"Nama file '{request.OtaFilename}' sudah digunakan." });
 
+            // === Simpan file fisik ===
+            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "otafiles");
+            if (!Directory.Exists(uploadsFolder))
+                Directory.CreateDirectory(uploadsFolder);
+
+            // generate nama file unik biar ga tabrakan
+            var uniqueFileName = $"{Guid.NewGuid()}{Path.GetExtension(request.OtaAttachment.FileName)}";
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await request.OtaAttachment.CopyToAsync(stream);
+            }
+
+            var relativePath = Path.Combine("uploads/otafiles", uniqueFileName);
+
+            // === Simpan DB ===
             var otaFile = new OtaFile
             {
                 OtaDesc = request.OtaDesc,
-                OtaAttachment = request.OtaAttachment,
+                OtaAttachment = relativePath,   // simpan path file, bukan base64
                 OtaFilename = request.OtaFilename,
                 OtaStatus = request.OtaStatus,
                 OtaKey = Guid.NewGuid(),
@@ -73,16 +91,21 @@ namespace NewPinpadApi.Controllers
                 DateTimes = DateTime.UtcNow,
                 KeyValues = $"ID: {otaFile.OtaId}",
                 OldValues = "{}",
-                NewValues = $"{{\"OtaDesc\":\"{otaFile.OtaDesc}\",\"OtaFilename\":\"{otaFile.OtaFilename}\",\"OtaStatus\":\"{otaFile.OtaStatus}\"}}",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    otaFile.OtaDesc,
+                    otaFile.OtaFilename,
+                    otaFile.OtaStatus,
+                    otaFile.OtaAttachment
+                }),
                 Username = User?.Identity?.Name ?? "system",
                 ActionType = "Created"
             };
 
             _context.Audits.Add(audit);
             await _context.SaveChangesAsync();
-            // =================
 
-            return CreatedAtAction(nameof(GetOtaFiles), new { id = otaFile.OtaId }, otaFile);
+            return CreatedAtAction(nameof(GetOtaFileById), new { id = otaFile.OtaId }, otaFile);
         }
 
         // DELETE: api/otafiles/{id}
@@ -94,8 +117,25 @@ namespace NewPinpadApi.Controllers
                 return NotFound(new { message = $"OtaFile dengan ID {id} tidak ditemukan." });
 
             // Simpan old values buat audit
-            var oldValues = $"{{\"OtaDesc\":\"{otaFile.OtaDesc}\",\"OtaFilename\":\"{otaFile.OtaFilename}\",\"OtaStatus\":\"{otaFile.OtaStatus}\"}}";
+            var oldValues = new
+            {
+                otaFile.OtaDesc,
+                otaFile.OtaFilename,
+                otaFile.OtaAttachment,
+                otaFile.OtaStatus
+            };
 
+            // === Hapus file fisik kalau ada ===
+            if (!string.IsNullOrEmpty(otaFile.OtaAttachment))
+            {
+                var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", otaFile.OtaAttachment.Replace("/", Path.DirectorySeparatorChar.ToString()));
+                if (System.IO.File.Exists(filePath))
+                {
+                    System.IO.File.Delete(filePath);
+                }
+            }
+
+            // === Hapus dari DB ===
             _context.OtaFiles.Remove(otaFile);
             await _context.SaveChangesAsync();
 
@@ -105,7 +145,7 @@ namespace NewPinpadApi.Controllers
                 TableName = "OtaFiles",
                 DateTimes = DateTime.UtcNow,
                 KeyValues = $"ID: {otaFile.OtaId}",
-                OldValues = oldValues,
+                OldValues = System.Text.Json.JsonSerializer.Serialize(oldValues),
                 NewValues = "{}",
                 Username = User?.Identity?.Name ?? "system",
                 ActionType = "Deleted"
@@ -113,10 +153,10 @@ namespace NewPinpadApi.Controllers
 
             _context.Audits.Add(audit);
             await _context.SaveChangesAsync();
-            // =================
 
-            return Ok(new { message = $"OtaFile dengan ID {id} berhasil dihapus." });
+            return Ok(new { message = $"OtaFile dengan ID {id} berhasil dihapus" });
         }
+
 
         // GET: api/otafiles/{id}
         [HttpGet("{id}")]
@@ -141,10 +181,10 @@ namespace NewPinpadApi.Controllers
             return Ok(ota);
         }
 
-
         // PUT: api/otafiles/{id}
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateOtaFile(int id, [FromBody] OtaFileUpdateRequest request)
+        [RequestSizeLimit(5_000_000)] // max 5 MB
+        public async Task<IActionResult> UpdateOtaFile(int id, [FromForm] OtaFileUpdateRequest request)
         {
             if (request == null)
                 return BadRequest(new { message = "Data tidak boleh kosong." });
@@ -153,7 +193,7 @@ namespace NewPinpadApi.Controllers
             if (otaFile == null)
                 return NotFound(new { message = $"OtaFile dengan ID {id} tidak ditemukan." });
 
-            // === Audit sebelum update (OldValues) ===
+            // === Audit sebelum update ===
             var oldValues = new
             {
                 otaFile.OtaDesc,
@@ -164,15 +204,43 @@ namespace NewPinpadApi.Controllers
 
             // === Update fields ===
             otaFile.OtaDesc = request.OtaDesc;
-            otaFile.OtaAttachment = request.OtaAttachment;
             otaFile.OtaFilename = request.OtaFilename;
             otaFile.OtaStatus = request.OtaStatus;
             otaFile.OtaUpdateBy = User?.Identity?.Name ?? "system";
             otaFile.OtaUpdateDate = DateTime.UtcNow;
 
+            // === Kalau ada file baru, hapus file lama ===
+            if (request.OtaAttachment != null && request.OtaAttachment.Length > 0)
+            {
+                // Hapus file lama (kalau ada)
+                if (!string.IsNullOrEmpty(otaFile.OtaAttachment))
+                {
+                    var oldFilePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", otaFile.OtaAttachment.Replace("/", Path.DirectorySeparatorChar.ToString()));
+                    if (System.IO.File.Exists(oldFilePath))
+                    {
+                        System.IO.File.Delete(oldFilePath);
+                    }
+                }
+
+                // Upload file baru
+                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "otafiles");
+                if (!Directory.Exists(uploadsFolder))
+                    Directory.CreateDirectory(uploadsFolder);
+
+                var uniqueFileName = $"{Guid.NewGuid()}{Path.GetExtension(request.OtaAttachment.FileName)}";
+                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await request.OtaAttachment.CopyToAsync(stream);
+                }
+
+                otaFile.OtaAttachment = Path.Combine("uploads/otafiles", uniqueFileName).Replace("\\", "/");
+            }
+
             await _context.SaveChangesAsync();
 
-            // === Audit log setelah update (NewValues) ===
+            // === Audit log setelah update ===
             var newValues = new
             {
                 otaFile.OtaDesc,
