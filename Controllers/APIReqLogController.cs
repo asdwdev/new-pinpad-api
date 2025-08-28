@@ -89,10 +89,13 @@ namespace NewPinpadApi.Controllers
                     }
                 };
 
+                // await AddAudit("Read", "GetPagedLogs", newValues: new { filter, result.pagination });
+
                 return Ok(new { success = true, data = result });
             }
             catch (Exception ex)
             {
+               
                 // tampilkan detail error biar gampang debug
                 return StatusCode(500, new { success = false, message = ex.ToString() });
             }
@@ -106,6 +109,8 @@ namespace NewPinpadApi.Controllers
             if (log == null)
                 return NotFound(new { success = false, message = "API Request Log not found" });
 
+
+            await AddAudit("Read", log.Id.ToString(), newValues: log);
             return Ok(new { success = true, data = log });
         }
 
@@ -118,6 +123,8 @@ namespace NewPinpadApi.Controllers
                 .ToListAsync();
 
             var excelData = _exportService.ExportToExcel(data);
+            await AddAudit("Export", "Excel", newValues: new { Count = data.Count, Filter = filter });
+
             return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 $"APIReqLog_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
         }
@@ -131,6 +138,9 @@ namespace NewPinpadApi.Controllers
                 .ToListAsync();
 
             var pdfData = _exportService.ExportToPdf(data);
+
+            await AddAudit("Export", "Pdf", newValues: new { Count = data.Count, Filter = filter });
+
             return File(pdfData, "application/pdf",
                 $"APIReqLog_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
         }
@@ -144,6 +154,8 @@ namespace NewPinpadApi.Controllers
                 .ToListAsync();
 
             var pdfData = _exportService.ExportToDetailedPdf(data);
+
+            await AddAudit("Export", "PdfDetailed", newValues: new { Count = data.Count, Filter = filter });
             return File(pdfData, "application/pdf",
                 $"APIReqLog_Detailed_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
         }
@@ -157,6 +169,8 @@ namespace NewPinpadApi.Controllers
                 .ToListAsync();
 
             var csvData = _exportService.ExportToCsv(data);
+
+            await AddAudit("Export", "Csv", newValues: new { Count = data.Count, Filter = filter });
             return File(csvData, "text/csv",
                 $"APIReqLog_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
         }
@@ -201,6 +215,8 @@ namespace NewPinpadApi.Controllers
                 }
             };
 
+            await AddAudit("Read", "Statistics", newValues: stats);
+
             return Ok(new { success = true, data = stats });
         }
 
@@ -214,7 +230,29 @@ namespace NewPinpadApi.Controllers
             _context.APIReqLogs.RemoveRange(oldLogs);
             await _context.SaveChangesAsync();
 
+            await AddAudit("Delete", "ClearOldLogs", newValues: new { daysToKeep, cleared = oldLogs.Count });
+
             return Ok(new { success = true, message = $"Cleared {oldLogs.Count} logs older than {daysToKeep} days" });
         }
+
+
+
+        private async Task AddAudit(string actionType, string keyValues, object? newValues = null, object? oldValues = null)
+        {
+            var audit = new Audit
+            {
+                TableName = "APIReqLog",
+                ActionType = actionType,
+                DateTimes = DateTime.Now,
+                Username = User?.Identity?.Name ?? "system",
+                KeyValues = keyValues,
+                OldValues = oldValues != null ? System.Text.Json.JsonSerializer.Serialize(oldValues) : "{}",
+                NewValues = newValues != null ? System.Text.Json.JsonSerializer.Serialize(newValues) : "{}"
+            };
+
+            _context.Audits.Add(audit);
+            await _context.SaveChangesAsync();
+        }
+
     }
 }
