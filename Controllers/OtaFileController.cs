@@ -169,7 +169,10 @@ namespace NewPinpadApi.Controllers
                     Id = o.OtaId,
                     OtaDesc = o.OtaDesc,
                     OtaFilename = o.OtaFilename,
-                    OtaAttachment = o.OtaAttachment,
+                    // ✅ kalau ada attachment, return full URL langsung
+                    OtaAttachment = o.OtaAttachment == null
+                        ? null
+                        : $"{Request.Scheme}://{Request.Host}/{o.OtaAttachment.Replace("\\", "/")}",
                     OtaStatus = o.OtaStatus,
                     RegisterDate = o.OtaCreateDate
                 })
@@ -180,6 +183,7 @@ namespace NewPinpadApi.Controllers
 
             return Ok(ota);
         }
+
 
         // PUT: api/otafiles/{id}
         [HttpPut("{id}")]

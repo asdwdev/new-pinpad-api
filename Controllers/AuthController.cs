@@ -35,6 +35,7 @@ namespace NewPinpadApi.Controllers
             // simpan data user ke session
             HttpContext.Session.SetInt32("UserId", user.Id);
             HttpContext.Session.SetString("Username", user.Username);
+            HttpContext.Session.SetString("FullName", user.FullName ?? "");
             HttpContext.Session.SetString("AccessLevel", user.AccessLevel.ToString());
 
             // response kalau berhasil login
@@ -102,13 +103,16 @@ namespace NewPinpadApi.Controllers
 
             // ambil data dari session
             var username = HttpContext.Session.GetString("Username") ?? "";
+            var fullName = HttpContext.Session.GetString("FullName") ?? "";
             var accessLevel = HttpContext.Session.GetString("AccessLevel") ?? "";
+
 
             // kirim info user saat ini
             return Ok(new
             {
                 success = true,
                 username,
+                fullName,
                 accessLevel
             });
         }
