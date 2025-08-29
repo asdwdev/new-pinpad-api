@@ -7,12 +7,12 @@ using NewPinpadApi.Models;
 namespace NewPinpadApi.Controllers
 {
     [ApiController]
-    [Route("api/[controller]s")]
-    public class OutletController : ControllerBase
+    [Route("api/[controller]")]
+    public class OutletsController : ControllerBase
     {
         private readonly AppDbContext _context;
 
-        public OutletController(AppDbContext context)
+        public OutletsController(AppDbContext context)
         {
             _context = context;
         }
@@ -21,6 +21,7 @@ namespace NewPinpadApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetOutlets()
         {
+            // Ambil semua outlet dari database
             var outlets = await _context.SysBranchTypes
                                         .OrderByDescending(o => o.Id)
                                         .Select(o => new OutletDto
@@ -31,9 +32,10 @@ namespace NewPinpadApi.Controllers
                                         })
                                         .ToListAsync();
 
+            // Kalau data kosong
             if (outlets == null || !outlets.Any())
             {
-                return NotFound(new { Message = "Data outlet tidak ditemukan." });
+                return NotFound(new { message = "No outlet data found." });
             }
 
             return Ok(outlets);
@@ -43,12 +45,14 @@ namespace NewPinpadApi.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetOutletById(int id)
         {
+            // Cari outlet berdasarkan ID
             var outlet = await _context.SysBranchTypes
-                                        .FirstOrDefaultAsync(o => o.Id == id);
+                                       .FirstOrDefaultAsync(o => o.Id == id);
 
+            // Kalau tidak ditemukan
             if (outlet == null)
             {
-                return NotFound(new { message = $"Outlet dengan ID {id} tidak ditemukan." });
+                return NotFound(new { message = $"Outlet with ID {id} was not found." });
             }
 
             return Ok(outlet);
@@ -58,14 +62,16 @@ namespace NewPinpadApi.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateOutlet([FromBody] OutletCreateRequest request)
         {
+            // Validasi request kosong
             if (request == null)
-                return BadRequest(new { message = "Data tidak boleh kosong." });
+                return BadRequest(new { message = "Request body cannot be empty." });
 
-            // Cek kode unik
+            // Cek kode outlet unik
             bool exists = await _context.SysBranchTypes.AnyAsync(o => o.Code == request.Code);
             if (exists)
-                return Conflict(new { message = $"Kode outlet '{request.Code}' sudah digunakan." });
+                return Conflict(new { message = $"The outlet code '{request.Code}' is already in use." });
 
+            // Buat outlet baru
             var newOutletType = new SysBranchType
             {
                 Code = request.Code,
@@ -80,7 +86,7 @@ namespace NewPinpadApi.Controllers
             _context.SysBranchTypes.Add(newOutletType);
             await _context.SaveChangesAsync();
 
-            // === Audit log ===
+            // Simpan audit log
             var audit = new Audit
             {
                 TableName = "SysBranchTypes",
@@ -94,32 +100,32 @@ namespace NewPinpadApi.Controllers
 
             _context.Audits.Add(audit);
             await _context.SaveChangesAsync();
-            // =================
 
-            return CreatedAtAction(nameof(GetOutlets), new { id = newOutletType.Id }, newOutletType);
+            return CreatedAtAction(nameof(GetOutletById), new { id = newOutletType.Id }, newOutletType);
         }
 
         // PUT: api/outlets/{id}
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateOutlet(int id, [FromBody] OutletUpdateRequest request)
         {
+            // Validasi request kosong
             if (request == null)
-                return BadRequest(new { message = "Data tidak boleh kosong." });
+                return BadRequest(new { message = "Request body cannot be empty." });
 
+            // Cari outlet berdasarkan ID
             var outletType = await _context.SysBranchTypes.FirstOrDefaultAsync(o => o.Id == id);
-
             if (outletType == null)
-                return NotFound(new { message = $"Outlet dengan ID {id} tidak ditemukan." });
+                return NotFound(new { message = $"Outlet with ID {id} was not found." });
 
             // Cek apakah kode sudah dipakai outlet lain
             bool exists = await _context.SysBranchTypes.AnyAsync(o => o.Code == request.Code && o.Id != id);
             if (exists)
-                return Conflict(new { message = $"Kode outlet '{request.Code}' sudah digunakan oleh outlet lain." });
+                return Conflict(new { message = $"The outlet code '{request.Code}' is already in use by another outlet." });
 
-            // Simpan old values untuk audit
+            // Simpan nilai lama untuk audit
             var oldValues = $"{{\"Code\":\"{outletType.Code}\",\"Name\":\"{outletType.Name}\"}}";
 
-            // Update fields
+            // Update field outlet
             outletType.Code = request.Code;
             outletType.Name = request.Name;
             outletType.UpdateDate = DateTime.UtcNow;
@@ -128,7 +134,7 @@ namespace NewPinpadApi.Controllers
             _context.SysBranchTypes.Update(outletType);
             await _context.SaveChangesAsync();
 
-            // Simpan audit
+            // Simpan audit log
             var audit = new Audit
             {
                 TableName = "SysBranchTypes",
@@ -150,33 +156,34 @@ namespace NewPinpadApi.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteOutlet(int id)
         {
+            // Cari outlet berdasarkan ID
             var outletType = await _context.SysBranchTypes
                                            .Include(o => o.Branches) // include relasi cabang
                                            .FirstOrDefaultAsync(o => o.Id == id);
 
             if (outletType == null)
-                return NotFound(new { message = $"Outlet dengan ID {id} tidak ditemukan." });
+                return NotFound(new { message = $"Outlet with ID {id} was not found." });
 
-            // Cek apakah ada cabang di bawah outlet type ini
+            // Cek apakah masih ada cabang di bawah outlet
             if (outletType.Branches != null && outletType.Branches.Any())
             {
-                return BadRequest(new { message = "Gagal menghapus, masih ada cabang di bawah outlet ini." });
+                return BadRequest(new { message = "Failed to delete, there are still branches under this outlet." });
             }
 
-            // Simpan old values untuk audit sebelum dihapus
+            // Simpan nilai lama untuk audit sebelum hapus
             var oldValues = $"{{\"Code\":\"{outletType.Code}\",\"Name\":\"{outletType.Name}\"}}";
 
             _context.SysBranchTypes.Remove(outletType);
             await _context.SaveChangesAsync();
 
-            // Simpan audit
+            // Simpan audit log
             var audit = new Audit
             {
                 TableName = "SysBranchTypes",
                 DateTimes = DateTime.Now,
                 KeyValues = $"ID: {outletType.Id}",
                 OldValues = oldValues,
-                NewValues = "{}", // karena data dihapus
+                NewValues = "{}", // data dihapus
                 Username = User?.Identity?.Name ?? "system",
                 ActionType = "Deleted"
             };
@@ -184,7 +191,7 @@ namespace NewPinpadApi.Controllers
             _context.Audits.Add(audit);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = $"Outlet dengan ID {id} berhasil dihapus." });
+            return Ok(new { message = $"Outlet with ID {id} has been successfully deleted." });
         }
     }
 }
